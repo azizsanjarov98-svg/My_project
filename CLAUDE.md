@@ -8,6 +8,7 @@
   - Шрифты брать из npm-пакетов `@fontsource/*` (лицензия OFL) и копировать `.woff2` в `fonts/`. Нужны шрифты с кириллицей (сейчас: Unbounded, Golos Text, JetBrains Mono).
 - Фото — только со свободной лицензией (Unsplash, Pexels, Wikimedia с CC0/CC BY). Скачивать в `img/` и сжимать (ширина ≤ 1400px, JPEG). Источник записывать в `img/credits.json`. Скрипт: `tools/fetch_photos.py`, список фото: `tools/photos.json`.
 - Публиковать через **GitHub Pages** (статический сайт, `.nojekyll` в корне). Ссылки claude.ai/artifact в России без VPN не открываются, поэтому их можно давать только как превью, а основная ссылка для учеников — GitHub Pages.
+- Для отправки учителю/ученикам собирать один файл: `python3 tools/build_single.py` → `dist/money-tenses-test.html` (шрифты и фото внутри файла, открывается без интернета, можно пересылать в Telegram/WhatsApp).
 - Сайт — статический HTML/CSS/JS без сборки, чтобы его можно было без изменений перенести на российский хостинг (Яндекс Object Storage, Timeweb, Beget), если GitHub Pages станет недоступен.
 
 ## Оформление
