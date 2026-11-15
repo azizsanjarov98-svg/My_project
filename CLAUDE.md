@@ -17,6 +17,8 @@
 - `docs/rules.md` — что запрещено и что обязательно проверять
 - `research/` — последние отчёты аналитика
 - `docs/sales/` — скрипты продаж
+- `docs/brand.md` — единый ник, водяной знак, названия
+- `docs/setup-access.md` — как подключить Tripster, Instagram и каталог WhatsApp
 
 ## Команда
 

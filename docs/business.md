@@ -44,9 +44,11 @@
 
 Один аккаунт на личный блог и компанию. Все три площадки строятся с нуля.
 
-- Instagram: `@tour_habibi`
+- Единый ник везде: `@AzizDubaiGuide` (см. `docs/brand.md`)
+- Instagram: сейчас `@tour_habibi`, переименовать в `@AzizDubaiGuide`
 - Telegram: `@AzizDubaiGuide` (ссылка для заявок: `t.me/AzizDubaiGuide`)
-- WhatsApp: `@AzizDubaiGuide` `[УТОЧНИТЬ: номер для ссылки wa.me — по нику ссылку с готовым текстом не сделать]`
+- WhatsApp Business: `@AzizDubaiGuide`, номер +998 97 149 41 51, ссылка `wa.me/998971494151`,
+  каталог `wa.me/c/998971494151` (в нём программы и цены экскурсий)
 - Каналы в Telegram и WhatsApp: создаются с нуля
 
 ## Ресурсы
