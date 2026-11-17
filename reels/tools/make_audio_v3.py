@@ -1,7 +1,8 @@
 """Soundtrack for aziz_reels_v3: 120 BPM groove + SFX on the cuts + voiceover with ducking.
-Usage: make_audio_v3.py out.wav voiceover.wav"""
+Usage: make_audio_v3.py out.wav voiceover.wav vo_times.json"""
 import numpy as np, wave, sys
-SR = 44100; DUR = 28.0; N = int(SR * DUR); BEAT = .5
+T = __import__('json').load(open(sys.argv[3]))
+SR = 44100; DUR = T['_dur']; N = int(SR * DUR); BEAT = .5
 rng = np.random.default_rng(7)
 L = np.zeros(N); R = np.zeros(N)
 t_all = np.arange(N) / SR
@@ -36,17 +37,18 @@ def hat(d=.035):
     return x * env(n, .001, d) * .18
 K, CL, HT = kick(), clap(), hat()
 
-DROP, END = 1.05, 26.0
+C1, C2, C3, C4, C5 = T['who1'][0] - .25, T['tk_title'][0] - .35, T['chat1'][0] - .35, T['pay_title_a'][0] - .3, T['cta1'][0] - .4
+DROP, END = T['hook2'][0] - .3, DUR - 2.0
 for b in range(int(DUR / BEAT)):
     t = b * BEAT
-    if DROP <= t < 27.0: put(K, t, .9)
+    if DROP <= t < DUR - 1.0: put(K, t, .9)
     if DROP <= t < END and b % 2 == 1: put(CL, t, .55)
-    if t < 27.0: put(HT, t + BEAT / 2, .7 if t >= DROP else .45, pan=.2)
+    if t < DUR - 1.0: put(HT, t + BEAT / 2, .7 if t >= DROP else .45, pan=.2)
     if DROP <= t < END: put(hat(.015), t + BEAT / 4, .35, pan=-.25); put(hat(.015), t + 3 * BEAT / 4, .3, pan=-.25)
 
 # sidechain envelope (pump on each kick)
 sc = np.ones(N)
-for b in range(int(DROP / BEAT), int(27 / BEAT)):
+for b in range(int(DROP / BEAT), int((DUR - 1) / BEAT)):
     i = int(b * BEAT * SR); n = int(.3 * SR); j = min(N, i + n)
     sc[i:j] = np.minimum(sc[i:j], 1 - .75 * np.exp(-np.arange(j - i) / SR * 9)[: j - i])
 
@@ -55,7 +57,7 @@ mtof = lambda m: 440 * 2 ** ((m - 69) / 12)
 CH = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]
 ROOT = [45, 41, 48, 43]
 pad = np.zeros(N); bass = np.zeros(N); arp = np.zeros(N)
-for bar in range(15):
+for bar in range(int(DUR / 2) + 1):
     t0 = bar * 2.0; i = int(t0 * SR); j = min(N, int((t0 + 2) * SR)); t = np.arange(j - i) / SR
     if i >= N: break
     c = CH[bar % 4]
@@ -112,18 +114,24 @@ def riser(d=2.0):
     tone = np.sin(2 * np.pi * np.cumsum(200 + 600 * (t / d) ** 2) / SR) * .25
     return (x + tone) * (t / d) ** 2 * .7
 
-CUTS = [2.7, 6.15, 14.9, 18.05, 23.85]
-put(riser(1.0), DROP - 1.0, .5); put(impact(), 1.6, .6)            # golden ticket slam
+CUTS = [C1, C2, C3, C4, C5]
+slam = T['hook2'][0] + .25
+put(riser(1.0), DROP - 1.0, .5); put(impact(), slam, .6)          # golden ticket slam
 for c in CUTS:
     put(whoosh(.45), c - .42, .45, pan=-.3); put(impact(), c, .6)
-put(pop(900), 3.0, .5); put(pop(1000), 4.5, .5)                    # stat pills
-for i, at in enumerate([6.85, 8.1, 9.2, 10.3, 11.0, 12.2, 13.5]):  # tickets fly in
-    put(whoosh(.3, up=False), at - .05, .35, pan=(.4 if i % 2 else -.4)); put(ding(880 * 2 ** (i / 12 * 2)), at + 1.0, .35)
-put(pop(600), 15.25, .55); put(pop(1200), 16.2, .55)               # chat
-put(pop(700), 16.85, .5); put(pop(760), 17.35, .5)                 # stickers
-for at in (19.1, 19.8, 22.7): put(whoosh(.3, up=False), at, .3)
-put(ding(1318.5), 19.5, .5); put(pop(1100), 21.35, .5); put(pop(1300), 21.85, .5); put(ding(1568), 22.5, .5); put(ding(1760), 23.1, .5)
-put(ding(1760), 24.85, .45)
+put(pop(900), T['who1'][0] + .3, .5); put(pop(1000), T['who2'][0] + .3, .5)   # stat pills
+for i in range(7):                                                 # tickets fly in, chip lands
+    at = T['tk%d' % (i + 1)][0] - .1
+    put(whoosh(.3, up=False), at - .05, .35, pan=(.4 if i % 2 else -.4))
+    nxt = T['tk%d' % (i + 2)][0] - .1 if i < 6 else C3 - .15
+    put(ding(880 * 2 ** (i / 12 * 2)), nxt, .3)
+put(pop(600), T['chat1'][0], .55); put(pop(1200), T['chat1'][0] + 1.5, .55)  # chat bubbles
+put(pop(700), T['chat2'][0] - .05, .5); put(pop(760), T['chat2'][0] + .4, .5) # stickers
+for k in ('pay_cash', 'pay_foreign', 'pay_ru'): put(whoosh(.3, up=False), T[k][0] - .2, .3)
+put(ding(1318.5), T['pay_cash'][1] - .1, .5)
+put(pop(1100), T['pay_visa_mc'][0] - .05, .5); put(pop(1300), T['pay_visa_mc'][0] + .7, .5); put(ding(1568), T['pay_visa_mc'][1] - .1, .5)
+put(ding(1760), T['pay_ru'][1] - .1, .5)
+put(ding(1760), T['cta2'][0] - .1, .45)
 
 # voiceover: load, resample 24k -> 44.1k, duck the music under it
 with wave.open(sys.argv[2]) as w:
