@@ -39,6 +39,7 @@ const C = {
 };
 
 // ---------- logo (real file if present, vector fallback) ----------
+const avatar = new Image(); let avatarOK = false; avatar.onload = () => { avatarOK = true; }; avatar.src = 'assets/aziz_avatar.jpg';
 const logoImg = new Image(); let logoOK = false;
 logoImg.onload = () => { logoOK = true; }; logoImg.src = 'assets/logo.png';
 
@@ -357,10 +358,13 @@ function S4(t) {
   ctx.globalAlpha = .07; for (let i = 0; i < 30; i++) emoji(['🌴', '☀️', '🐪', '🛥️'][i % 4], -PW / 2 + rnd(i) * PW, -PH / 2 + rnd(i + 9) * PH, 50); ctx.globalAlpha = 1;
   // header
   ctx.fillStyle = '#0d1330'; ctx.fillRect(-PW / 2, -PH / 2, PW, 210);
-  logoBadge(-PW / 2 + 110, -PH / 2 + 130, 48, t);
-  txt('Азиз | Гид в Эмиратах', -PW / 2 + 180, -PH / 2 + 110, 40, '#fff', { w: 800, align: 'left' });
-  txt('в сети', -PW / 2 + 180, -PH / 2 + 158, 32, '#35e0a0', { w: 600, align: 'left' });
-  ctx.beginPath(); ctx.arc(-PW / 2 + 148, -PH / 2 + 166, 10, 0, 7); ctx.fillStyle = '#35e0a0'; ctx.fill();
+  { const ax = -PW / 2 + 110, ay = -PH / 2 + 130, ar = 56;
+    ctx.save(); ctx.beginPath(); ctx.arc(ax, ay, ar, 0, 7); ctx.clip();
+    if (avatarOK) ctx.drawImage(avatar, ax - ar, ay - ar, ar * 2, ar * 2); else { ctx.fillStyle = '#334'; ctx.fill(); }
+    ctx.restore(); ctx.beginPath(); ctx.arc(ax, ay, ar + 3, 0, 7); ctx.lineWidth = 5; ctx.strokeStyle = C.gold; ctx.stroke(); }
+  txt('Азиз | Гид в Эмиратах', -PW / 2 + 190, -PH / 2 + 110, 40, '#fff', { w: 800, align: 'left' });
+  txt('в сети', -PW / 2 + 190, -PH / 2 + 158, 32, '#35e0a0', { w: 600, align: 'left' });
+  ctx.beginPath(); ctx.arc(-PW / 2 + 152, -PH / 2 + 172, 12, 0, 7); ctx.fillStyle = '#35e0a0'; ctx.fill();
   // bubbles (stack from top, scroll if needed)
   let y = -PH / 2 + 260; const fs = 38, lh = 50, maxW = PW - 260;
   CHAT.forEach(m => {
