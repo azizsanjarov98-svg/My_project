@@ -180,7 +180,7 @@ function logoBadge(x, y, R, t, ringP = 1) {
   // glow
   const gl = ctx.createRadialGradient(0, 0, R * .6, 0, 0, R * 1.9); gl.addColorStop(0, 'rgba(255,190,80,.45)'); gl.addColorStop(1, 'rgba(255,190,80,0)');
   ctx.fillStyle = gl; ctx.fillRect(-R * 2, -R * 2, R * 4, R * 4);
-  if (logoOK) {
+  if (false) {
     ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.clip();
     const k = Math.max(2 * R / logoImg.width, 2 * R / logoImg.height);
     ctx.drawImage(logoImg, -logoImg.width * k / 2, -logoImg.height * k / 2, logoImg.width * k, logoImg.height * k); ctx.restore();
@@ -188,7 +188,7 @@ function logoBadge(x, y, R, t, ringP = 1) {
     const bg = ctx.createLinearGradient(0, -R, 0, R); bg.addColorStop(0, '#1d2a6b'); bg.addColorStop(1, '#0b1033');
     ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fillStyle = bg; ctx.fill();
     ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.clip(); ctx.globalAlpha = .9; burj(0, R * .95, R * .9, 'rgba(255,201,74,.18)'); ctx.restore();
-    ctx.save(); ctx.translate(0, -R * .08); dogFace(R / 210); ctx.restore();
+    txt('@', 0, -R * .1, R * 1.05, goldGrad(-R * .6, R * .6), { glow: 'rgba(255,190,80,.55)', glowR: R * .25 });
     // curved text
     ctx.save(); font(R * .13, 900); ctx.fillStyle = C.gold; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const str = 'AZIZ · DUBAI · GUIDE', step = .118; const start = Math.PI / 2 + (str.length - 1) * step / 2;
@@ -253,7 +253,7 @@ function S2(t) {
   if (p > 0) { ctx.save(); ctx.translate(W / 2, 760); const s = elastic(p); ctx.scale(s, s); ctx.rotate((1 - eOut(p)) * -.6); logoBadge(0, 0, 270, t, eOut(prog(t, t0 + .2, t0 + 1.2))); ctx.restore(); }
   // name
   const pn = prog(t, t0 + .6, t0 + 1.3);
-  if (pn > 0) { ctx.save(); ctx.globalAlpha *= pn; txt('AZIZ DUBAI GUIDE', W / 2, 1150, 70, '#fff', { track: lerp(40, 10, eOut(pn)), glow: 'rgba(255,190,80,.5)' }); ctx.restore(); }
+  if (pn > 0) { ctx.save(); ctx.globalAlpha *= pn; txt(HANDLE, W / 2, 1150, 92, goldGrad(1100, 1200), { track: lerp(30, 0, eOut(pn)), glow: 'rgba(255,190,80,.5)' }); ctx.restore(); }
   const pf = prog(t, t0 + 1.0, t0 + 1.5);
   if (pf > 0) {
     ctx.save(); ctx.globalAlpha *= pf; ctx.translate(0, (1 - eOut(pf)) * 30);
