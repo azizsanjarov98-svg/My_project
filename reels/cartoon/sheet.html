@@ -1,0 +1,61 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>День 1 — лист персонажей</title>
+<style>html,body{margin:0;background:#111}canvas{display:block;width:540px;height:960px}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="characters.js"></script>
+<script>
+const W = 1080, H = 1920, g = document.getElementById('c').getContext('2d');
+const F = '"Inter Display", Inter, sans-serif';
+function txt(s, x, y, size, col, w = 800, al = 'center') { g.font = `${w} ${size}px ${F}`; g.fillStyle = col; g.textAlign = al; g.textBaseline = 'middle'; g.fillText(s, x, y); }
+
+// paper background
+const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#f6ead6'); bg.addColorStop(1, '#ead6b8'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(90,60,30,${Math.random() * .05})`; g.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+txt('«ДЕНЬ 1. СНОВА»', W / 2, 80, 64, '#2a1d3a', 900);
+txt('лист персонажей · паспорт стиля', W / 2, 140, 34, '#7a5a48', 600);
+
+// --- hero panel, daylight
+const DAY = { dir: -1, rim: 'rgba(255,240,200,.9)', shadow: 'rgba(60,20,80,.30)', ground: 'rgba(60,20,80,.16)' };
+g.save(); g.beginPath(); g.roundRect(40, 190, 1000, 900, 40); g.clip();
+const sky = g.createLinearGradient(0, 190, 0, 1090); sky.addColorStop(0, '#ffcf8a'); sky.addColorStop(.6, '#ffe7c4'); sky.addColorStop(1, '#f1c48c'); g.fillStyle = sky; g.fillRect(40, 190, 1000, 900);
+g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(860, 330, 70, 0, 7); g.fill();
+g.fillStyle = '#e9b277'; g.fillRect(40, 960, 1000, 140);
+CHAR.seryoga(g, { x: 300, y: 1000, s: .95, face: .35, armL: [.3, -.25], armR: [-2.6, -.6], mouth: 'smile', pupil: [.6, 0] }, DAY);
+CHAR.barkhan(g, { x: 800, y: 1000, s: .66, face: -1, chew: 1.2, lid: .55, pupil: [-1, 0] }, { ...DAY, dir: -1 });
+g.restore();
+txt('Серёга', 300, 1060 - 0, 40, '#2a1d3a', 900);
+txt('Бархан', 780, 1060, 40, '#2a1d3a', 900);
+
+// --- expressions: the 4 stages of the loop
+const EXP = [
+  ['утро · петля 1', { mouth: 'smile', eyeOpen: 1, brow: .3, pupil: [0, 0] }],
+  ['петля 2 · «225»', { mouth: 'grit', eyeOpen: .9, brow: -.4, browTilt: 1, twitch: 1, sweat: 1 }],
+  ['петля 3 · одержим', { mouth: 'flat', eyeOpen: 1.25, brow: .8, pupil: [0, 0], bags: .9, blush: 0 }],
+  ['финал · счастье', { mouth: 'grin', eyeOpen: .55, brow: .6, pupil: [0, -.3] }],
+];
+EXP.forEach(([label, e], i) => {
+  const cx = 150 + i * 260, cy = 1300;
+  g.save(); g.beginPath(); g.roundRect(cx - 115, cy - 150, 230, 270, 30); g.fillStyle = '#fff6e6'; g.fill(); g.strokeStyle = '#d7b98f'; g.lineWidth = 3; g.stroke(); g.clip();
+  CHAR.seryoga(g, Object.assign({ x: cx, y: cy + 380, s: .62, face: 0 }, e), DAY);
+  g.restore();
+  txt(label, cx, cy + 150, 24, '#5a4038', 700);
+});
+
+// --- palette & light
+txt('палитра', 160, 1520, 30, '#2a1d3a', 800);
+['#1fa59a', '#ff7b39', '#f1e4c0', '#d9a066', '#e8443a', '#ffd34d', '#27304f', '#0f1a3a'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(90 + i * 70, 1590, 28, 0, 7); g.fill(); });
+// night light swatch: Barkhan under moon, single warm light
+g.save(); g.beginPath(); g.roundRect(640, 1480, 400, 380, 30); g.clip();
+const ng = g.createLinearGradient(0, 1480, 0, 1860); ng.addColorStop(0, '#0d1838'); ng.addColorStop(1, '#1d2f55'); g.fillStyle = ng; g.fillRect(640, 1480, 400, 380);
+g.fillStyle = '#e8f1ff'; g.beginPath(); g.arc(980, 1540, 26, 0, 7); g.fill();
+g.fillStyle = '#16264a'; g.beginPath(); g.moveTo(640, 1800); g.quadraticCurveTo(840, 1700, 1040, 1790); g.lineTo(1040, 1860); g.lineTo(640, 1860); g.fill();
+const NIGHT = { dir: 1, rim: 'rgba(170,210,255,.85)', shadow: 'rgba(5,10,40,.6)', ground: 'rgba(5,10,40,.4)', cast: 'rgba(0,0,20,.5)' };
+CHAR.barkhan(g, { x: 840, y: 1800, s: .38, face: 1, sit: 1, lid: .6 }, NIGHT);
+g.fillStyle = 'rgba(15,25,70,.45)'; g.fillRect(640, 1480, 400, 380);   // cold grade
+const wl = g.createRadialGradient(700, 1760, 4, 700, 1760, 90); wl.addColorStop(0, 'rgba(255,190,90,.95)'); wl.addColorStop(1, 'rgba(255,150,60,0)'); g.fillStyle = wl; g.fillRect(600, 1660, 200, 200);
+g.restore();
+txt('ночь: холод + один тёплый огонь', 840, 1890, 22, '#5a4038', 700);
+txt('день: низкое солнце, длинные тени', 330, 1660, 26, '#5a4038', 700);
+txt('2D-анимация · мягкий объём · фактура бумаги', 330, 1720, 26, '#5a4038', 700);
+txt('без слов: смешат пауза и взгляд', 330, 1780, 26, '#5a4038', 700);
+</script></body></html>
