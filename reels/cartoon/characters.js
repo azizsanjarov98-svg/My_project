@@ -60,7 +60,7 @@
     sock: '#ffffff', sandal: '#7a4a2b', glasses: '#1c2033', line: '#3b2230',
   };
   const DEF_S = { x: 0, y: 0, s: 1, face: 0, lean: 0, bob: 0, walk: null,
-    armL: [.25, -.35], armR: [-.25, .35], legL: 0, legR: 0,
+    armL: [-.42, .25], armR: [.42, -.25], legL: 0, legR: 0,
     brow: 0, browTilt: 0, eyeOpen: 1, pupil: [0, 0], mouth: 'smile', mouthOpen: 0, twitch: 0, sweat: 0, bags: 0,
     hat: true, prop: null, propHand: 'R', blush: .5 };
   function seryoga(g, opt = {}, L = { dir: -1 }) {
@@ -69,7 +69,7 @@
     // contact shadow
     g.save(); g.fillStyle = L.cast || 'rgba(20,0,40,.28)'; g.beginPath(); g.ellipse(0, 0, 140, 22, 0, 0, TAU); g.fill(); g.restore();
     let lL = o.legL, lR = o.legR, aL = o.armL, aR = o.armR, bob = o.bob;
-    if (o.walk !== null) { const w = o.walk; lL = Math.sin(w) * .45; lR = -Math.sin(w) * .45; bob = Math.abs(Math.cos(w)) * -12; aL = [-Math.sin(w) * .5 + .15, -.5]; aR = [Math.sin(w) * .5 - .15, .5]; }
+    if (o.walk !== null) { const w = o.walk; lL = Math.sin(w) * .45; lR = -Math.sin(w) * .45; bob = Math.abs(Math.cos(w)) * -12; aL = [-.35 - Math.sin(w) * .45, .45]; aR = [.35 + Math.sin(w) * .45, -.45]; }
     g.translate(0, bob);
     g.rotate(o.lean);
     const fx = o.face * 28; // 3/4 turn: face features shift
@@ -98,7 +98,6 @@
       body(g, sl, SER.shirt, L, { bb: [-38, -22, 76, 92] });
       g.save(); sl(); g.clip(); g.fillStyle = SER.flower; g.beginPath(); g.arc(8, 25, 9, 0, TAU); g.fill(); g.restore();
       g.restore(); };
-    arm(-108, aL);
     // torso (round belly) in the shirt
     const torso = () => { g.beginPath(); g.moveTo(-95, -480); g.bezierCurveTo(-150, -440, -160, -330, -120, -300); g.bezierCurveTo(-60, -270, 60, -270, 120, -300); g.bezierCurveTo(160, -330, 150, -440, 95, -480); g.closePath(); };
     body(g, torso, SER.shirt, L, { bb: [-160, -480, 320, 210] });
@@ -119,7 +118,7 @@
     // backpack straps
     g.save(); g.strokeStyle = SER.strap; g.lineWidth = 20; g.lineCap = 'round';
     g.beginPath(); g.moveTo(-70, -478); g.quadraticCurveTo(-95, -400, -78, -330); g.moveTo(70, -478); g.quadraticCurveTo(95, -400, 78, -330); g.stroke(); g.restore();
-    arm(108, aR);
+    arm(-112, aL); arm(112, aR);
     // neck + head
     const hy = -585;
     body(g, ell(g, fx * .2, -490, 40, 26), SER.skin, L, { bb: [-40, -516, 80, 52] });
@@ -164,6 +163,17 @@
     g.restore();
     // sweat drop
     if (o.sweat > 0) { g.save(); g.globalAlpha = o.sweat; g.fillStyle = '#9fe3ff'; g.strokeStyle = '#3a7fa8'; g.lineWidth = 3; const sx = 95 + fx * .2, sy = hy - 60; g.beginPath(); g.moveTo(sx, sy - 22); g.quadraticCurveTo(sx + 16, sy, sx, sy + 10); g.quadraticCurveTo(sx - 16, sy, sx, sy - 22); g.fill(); g.stroke(); g.restore(); }
+    // messy curly hair when the hat is off (bed scenes)
+    if (!o.hat) {
+      g.save(); g.fillStyle = SER.hair; g.strokeStyle = shade(SER.hair, -.4); g.lineWidth = 4;
+      const cx0 = fx * .3;
+      g.beginPath(); g.ellipse(cx0, hy - 70, 104, 52, 0, Math.PI, 0); g.fill();
+      [[-92, -50], [-70, -95], [-35, -118], [5, -124], [45, -116], [78, -94], [96, -55], [-20, -88], [30, -86]].forEach(([dx, dy], i) => { g.beginPath(); g.arc(cx0 + dx, hy + dy, 24 + (i % 3) * 3, 0, TAU); g.fill(); g.stroke(); });
+      g.beginPath(); g.ellipse(cx0, hy - 70, 100, 48, 0, Math.PI, 0); g.fill();
+      // a sleepy cowlick
+      g.lineWidth = 7; g.beginPath(); g.moveTo(cx0 + 10, hy - 140); g.quadraticCurveTo(cx0 + 40, hy - 190, cx0 + 5, hy - 200); g.stroke();
+      g.restore();
+    }
     // panama hat + sunglasses on it
     if (o.hat) {
       body(g, ell(g, fx * .3, hy - 82, 158, 30), SER.hat, L, { bb: [-158, hy - 112, 316, 60] });

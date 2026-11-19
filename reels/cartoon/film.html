@@ -1,0 +1,463 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>День 1. Снова</title>
+<style>html,body{margin:0;background:#000}canvas{display:block;width:405px;height:720px}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="characters.js"></script>
+<script>
+// =====================================================================
+//  «ДЕНЬ 1. СНОВА» — 2D cartoon, 9:16, 30 fps, ~45 s. No dialogue.
+// =====================================================================
+const W = 1080, H = 1920, FPS = 30, DUR = 45;
+const out = document.getElementById('c'), octx = out.getContext('2d');
+const buf = document.createElement('canvas'); buf.width = W; buf.height = H;
+const g = buf.getContext('2d');
+const F = '"Inter Display", Inter, sans-serif', EMO = '"Noto Color Emoji"';
+const { seryoga, barkhan, shade } = CHAR;
+const TAU = Math.PI * 2;
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const eOut = x => 1 - Math.pow(1 - x, 3), eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const back = (x, s = 1.7) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
+const rnd = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+function txt(s, x, y, size, col, o = {}) { g.save(); g.font = `${o.w ?? 900} ${size}px ${o.fam ?? F}`; g.fillStyle = col; g.textAlign = o.al ?? 'center'; g.textBaseline = 'middle'; if (o.track) g.letterSpacing = o.track + 'px'; if (o.glow) { g.shadowColor = o.glow; g.shadowBlur = o.gr ?? 30; } g.fillText(s, x, y); g.restore(); }
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function lg(x0, y0, x1, y1, stops) { const q = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, c]) => q.addColorStop(o, c)); return q; }
+
+// light presets
+const DAY = { dir: -1, rim: 'rgba(255,240,205,.9)', shadow: 'rgba(80,25,70,.30)', ground: 'rgba(80,25,70,.15)', cel: 'rgba(110,30,70,.20)' };
+const ROOM = { dir: -1, rim: 'rgba(255,225,170,.85)', shadow: 'rgba(70,25,60,.32)', ground: 'rgba(70,25,60,.16)', cel: 'rgba(100,30,60,.2)' };
+const SUNSET = { dir: -1, rim: 'rgba(255,170,90,.95)', shadow: 'rgba(90,20,80,.38)', ground: 'rgba(90,20,80,.2)', cel: 'rgba(120,30,80,.26)' };
+const NIGHT = { dir: 1, rim: 'rgba(150,200,255,.9)', shadow: 'rgba(5,10,45,.55)', ground: 'rgba(5,10,45,.35)', cel: 'rgba(10,20,70,.35)', cast: 'rgba(0,0,25,.5)' };
+const PHONE = { dir: 1, rim: 'rgba(255,200,120,.95)', shadow: 'rgba(10,10,40,.55)', ground: 'rgba(10,10,40,.3)', cel: 'rgba(20,20,70,.3)' };
+
+// ---------------------------------------------------------------- props
+function alarmClock(x, y, s, t, ring, squash = 0, hands = [7, 0]) {
+  g.save(); g.translate(x, y); g.scale(s * (1 + squash * .15), s * (1 - squash * .22));
+  if (ring) g.rotate(Math.sin(t * 70) * .07);
+  // legs
+  g.fillStyle = '#7a1d24'; [-1, 1].forEach(d => { g.save(); g.translate(d * 70, 100); g.rotate(d * .4); rr(-10, 0, 20, 45, 8); g.fill(); g.restore(); });
+  // bells + hammer
+  [-1, 1].forEach(d => { g.save(); g.translate(d * 70, -95); g.rotate(d * .5);
+    g.fillStyle = lg(-50, 0, 50, 0, [[0, '#ffe17a'], [1, '#c7911c']]); g.beginPath(); g.arc(0, 0, 50, Math.PI, 0); g.closePath(); g.fill();
+    g.strokeStyle = '#8a5b10'; g.lineWidth = 5; g.stroke(); g.restore(); });
+  g.fillStyle = '#5a3b10'; g.fillRect(-6, -150, 12, 40); if (ring) { g.save(); g.translate(0, -150); g.rotate(Math.sin(t * 90) * .6); g.fillRect(-4, -36, 8, 36); g.beginPath(); g.arc(0, -36, 10, 0, TAU); g.fill(); g.restore(); }
+  // body
+  g.fillStyle = lg(-120, -120, 120, 120, [[0, '#ff5a5f'], [1, '#b8202e']]); g.beginPath(); g.arc(0, 0, 120, 0, TAU); g.fill();
+  g.strokeStyle = '#6e121a'; g.lineWidth = 7; g.stroke();
+  g.fillStyle = '#fff8ea'; g.beginPath(); g.arc(0, 0, 92, 0, TAU); g.fill(); g.strokeStyle = '#d9c7a5'; g.lineWidth = 4; g.stroke();
+  g.fillStyle = '#3a2a2a'; for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; g.beginPath(); g.arc(Math.sin(a) * 74, -Math.cos(a) * 74, i % 3 ? 4 : 7, 0, TAU); g.fill(); }
+  const hA = (hands[0] % 12 + hands[1] / 60) / 12 * TAU, mA = hands[1] / 60 * TAU;
+  g.strokeStyle = '#2a1d1d'; g.lineCap = 'round'; g.lineWidth = 9; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.sin(hA) * 45, -Math.cos(hA) * 45); g.stroke();
+  g.lineWidth = 6; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.sin(mA) * 68, -Math.cos(mA) * 68); g.stroke();
+  g.fillStyle = '#e8443a'; g.beginPath(); g.arc(0, 0, 9, 0, TAU); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-48, -50, 26, 14, -.7, 0, TAU); g.fill();
+  g.restore();
+  if (ring) { // vibration lines
+    g.save(); g.strokeStyle = 'rgba(60,20,30,.75)'; g.lineWidth = 7; g.lineCap = 'round';
+    [-1, 1].forEach(d => { for (let k = 0; k < 3; k++) { const r = 180 * s + k * 34 * s + Math.sin(t * 40) * 6; g.beginPath(); g.arc(x, y - 30 * s, r, d > 0 ? -.55 : Math.PI - .1, d > 0 ? .1 : Math.PI + .55); g.stroke(); } });
+    g.restore();
+  }
+}
+function stamp(text, x, y, t, t0, col = '#e8443a', size = 120, rot = -.12) {
+  const p = prog(t, t0, t0 + .22); if (p <= 0) return;
+  const s = lerp(2.4, 1, eOut(p));
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s); g.globalAlpha = clamp(p * 2.5);
+  g.font = `900 ${size}px ${F}`; const w = g.measureText(text).width + 70;
+  g.strokeStyle = col; g.lineWidth = 12; rr(-w / 2, -size * .72, w, size * 1.44, 24); g.stroke();
+  txt(text, 0, 6, size, col);
+  g.globalCompositeOperation = 'destination-out'; // grungy ink gaps
+  for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(0,0,0,${.5 + rnd(i) * .5})`; g.beginPath(); g.arc(-w / 2 + rnd(i + 3) * w, -size * .7 + rnd(i + 7) * size * 1.4, 2 + rnd(i + 9) * 6, 0, TAU); g.fill(); }
+  g.restore();
+}
+function rewind(t, t0, t1) { // VHS rewind glitch overlay
+  if (t < t0 || t > t1) return;
+  const p = prog(t, t0, t1);
+  g.save(); g.fillStyle = `rgba(10,10,30,${.35})`; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) { const y = (rnd(i + Math.floor(t * 30)) * H); g.fillStyle = `rgba(255,255,255,${.15 + rnd(i * 3) * .3})`; g.fillRect(0, y, W, 2 + rnd(i) * 10); }
+  const by = ((t * 2600) % (H + 200)) - 100; g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, by, W, 90);
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = 'rgba(255,0,80,.12)'; g.fillRect(14, 0, W, H); g.fillStyle = 'rgba(0,200,255,.12)'; g.fillRect(-14, 0, W, H);
+  g.restore();
+  txt('◀◀', 150, 180, 90, '#fff', { glow: 'rgba(0,0,0,.6)' }); txt('REW', 290, 182, 64, '#fff', { w: 800 });
+}
+function burj(cx, base, h, col) {
+  g.fillStyle = col; g.beginPath();
+  const tiers = [[60, 0], [48, .22], [38, .42], [28, .6], [18, .76], [10, .88], [4, .96]];
+  g.moveTo(cx - 70 * h / 820, base);
+  tiers.forEach(([w, f]) => g.lineTo(cx - w * h / 820, base - h * f));
+  g.lineTo(cx - 1.5, base - h * 1.08); g.lineTo(cx + 1.5, base - h * 1.08);
+  [...tiers].reverse().forEach(([w, f]) => g.lineTo(cx + w * h / 820, base - h * f));
+  g.lineTo(cx + 70 * h / 820, base); g.closePath(); g.fill();
+}
+function skyline(base, col, seed = 1, sc = 1) {
+  g.fillStyle = col; let x = -20; let i = 0;
+  while (x < W + 40) { const w = (50 + rnd(x + seed) * 80) * sc, h = (100 + rnd(x + seed + 1) * 260) * sc; g.fillRect(x, base - h, w, h + 5); x += w + 8 * sc; i++; }
+}
+function palmPot(x, y, s, t) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = '#b5643c'; g.beginPath(); g.moveTo(-60, 0); g.lineTo(60, 0); g.lineTo(45, 110); g.lineTo(-45, 110); g.closePath(); g.fill();
+  g.strokeStyle = '#6b8f3a'; g.lineWidth = 14; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(10, -120, -5, -230); g.stroke();
+  g.fillStyle = '#3f8f4a';
+  for (let i = 0; i < 7; i++) { g.save(); g.translate(-5, -230); g.rotate(-Math.PI / 2 + (i - 3) * .5 + Math.sin(t * 1.4 + i) * .04);
+    g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(80, -40, 170, 20); g.quadraticCurveTo(80, 0, 0, 0); g.fill(); g.restore(); }
+  g.restore();
+}
+function phoneDevice(x, y, s, rot, screen) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  g.fillStyle = '#16182a'; rr(-170, -340, 340, 680, 46); g.fill(); g.strokeStyle = '#3a3f60'; g.lineWidth = 6; g.stroke();
+  g.save(); rr(-152, -322, 304, 644, 34); g.clip(); screen(); g.restore();
+  g.fillStyle = '#16182a'; rr(-50, -318, 100, 22, 11); g.fill();
+  g.restore();
+}
+function mitten(x, y, s, rot = 0, L = DAY) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(s, s);
+  CHAR.body(g, () => { g.beginPath(); g.ellipse(0, 0, 40, 46, 0, 0, TAU); }, '#f2c29a', L, { bb: [-40, -46, 80, 92], cel: false });
+  CHAR.body(g, () => { g.beginPath(); g.ellipse(-36, -8, 15, 24, -.5, 0, TAU); }, '#f2c29a', L, { bb: [-50, -32, 30, 48], cel: false, lw: 4 });
+  g.restore();
+}
+
+// ---------------------------------------------------------------- shared sets
+function bedroomWall(t, warm = 1) {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#f6d9b2'], [1, '#e9bf8f']]); g.fillRect(0, 0, W, H);
+  // wallpaper stripes
+  g.fillStyle = 'rgba(200,120,80,.08)'; for (let x = 0; x < W; x += 90) g.fillRect(x, 0, 40, H);
+  // window light patch
+  g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,220,150,${.25 * warm})`;
+  g.beginPath(); g.moveTo(120, 180); g.lineTo(560, 140); g.lineTo(700, 820); g.lineTo(200, 900); g.closePath(); g.fill(); g.restore();
+}
+function nightstand() {
+  g.fillStyle = lg(0, 1240, 0, H, [[0, '#9b5a35'], [1, '#5e3220']]); g.fillRect(0, 1240, W, H - 1240);
+  g.fillStyle = '#b8714a'; g.fillRect(0, 1225, W, 30);
+  g.fillStyle = 'rgba(0,0,0,.15)'; for (let i = 0; i < 6; i++) g.fillRect(0, 1300 + i * 110, W, 3);
+}
+function alarmShot(t, ringFrom, slapAt, opts = {}) { // the recurring close-up
+  bedroomWall(t);
+  // lamp silhouette + book
+  g.fillStyle = '#2d6f6a'; rr(780, 1030, 170, 200, 18); g.fill(); g.fillStyle = '#f7e2b5'; g.beginPath(); g.moveTo(760, 1040); g.lineTo(970, 1040); g.lineTo(920, 870); g.lineTo(810, 870); g.closePath(); g.fill();
+  g.fillStyle = '#c2453d'; rr(110, 1170, 260, 56, 8); g.fill(); g.fillStyle = '#e9d29b'; rr(130, 1130, 230, 44, 8); g.fill();
+  nightstand();
+  const ring = t >= ringFrom && t < slapAt;
+  const sq = slapAt ? Math.exp(-Math.max(0, t - slapAt) * 14) * (t >= slapAt ? 1 : 0) : 0;
+  alarmClock(540, 1060, 1.5, t, ring, sq, opts.hands || [7, 0]);
+  if (slapAt && t > slapAt - .25 && t < slapAt + .55) { // hand comes down
+    const p = t < slapAt ? eIn(prog(t, slapAt - .25, slapAt)) : 1 - eOut(prog(t, slapAt + .15, slapAt + .55));
+    mitten(560, lerp(-150, 760, p), 2.4, .2, ROOM);
+    if (t >= slapAt && t < slapAt + .15) { g.save(); g.strokeStyle = 'rgba(80,30,30,.8)'; g.lineWidth = 10; g.lineCap = 'round'; for (let k = 0; k < 6; k++) { const a = -Math.PI + k * .6 - .3; g.beginPath(); g.moveTo(540 + Math.cos(a) * 260, 900 + Math.sin(a) * 150); g.lineTo(540 + Math.cos(a) * 340, 900 + Math.sin(a) * 200); g.stroke(); } g.restore(); }
+  }
+}
+function bedroomWide(t, opts = {}) {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#f3d2a7'], [1, '#e0aa78']]); g.fillRect(0, 0, W, H);
+  // window with Burj view
+  const wx = 120, wy = 260, ww = 520, wh = 700;
+  g.save(); rr(wx, wy, ww, wh, 16); g.clip();
+  g.fillStyle = lg(0, wy, 0, wy + wh, [[0, opts.night ? '#0d1838' : '#7cc7ff'], [1, opts.night ? '#2a2f5a' : '#ffe1b0']]); g.fillRect(wx, wy, ww, wh);
+  skyline(wy + wh, opts.night ? '#18204a' : '#a8c4dc', 3, .7); burj(wx + 330, wy + wh, 600, opts.night ? '#141a3e' : '#8fb0cc');
+  if (opts.camel) { barkhan(g, { x: wx + 120, y: wy + wh - 10, s: .12, face: 1, chew: t * 6, lid: .55 }, DAY); }
+  g.restore();
+  g.strokeStyle = '#fff4e2'; g.lineWidth = 22; rr(wx, wy, ww, wh, 16); g.stroke(); g.lineWidth = 12; g.beginPath(); g.moveTo(wx + ww / 2, wy); g.lineTo(wx + ww / 2, wy + wh); g.stroke();
+  // curtains
+  g.fillStyle = '#d0564d'; [wx - 70, wx + ww - 10].forEach(cx => { g.beginPath(); g.moveTo(cx, wy - 60); g.quadraticCurveTo(cx + 40, wy + 400, cx + 10, wy + wh + 80); g.lineTo(cx + 80, wy + wh + 80); g.quadraticCurveTo(cx + 110, wy + 400, cx + 80, wy - 60); g.closePath(); g.fill(); });
+  // door
+  g.fillStyle = '#a7633f'; rr(780, 560, 230, 760, 10); g.fill(); g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(810, 950, 14, 0, TAU); g.fill();
+  // floor
+  g.fillStyle = lg(0, 1320, 0, H, [[0, '#b97a4f'], [1, '#7c4a2e']]); g.fillRect(0, 1320, W, H);
+  g.fillStyle = 'rgba(255,255,255,.05)'; for (let i = 0; i < 9; i++) g.fillRect(i * 130, 1320, 4, H);
+  // bed
+  g.fillStyle = '#efe6d8'; rr(-40, 1060, 560, 140, 30); g.fill(); // pillow area
+  g.fillStyle = '#7a4a2e'; rr(-60, 1000, 40, 420, 10); g.fill();
+}
+
+// ---------------------------------------------------------------- SHOTS (local time l, global t)
+const SHOTS = [];
+const shot = (t0, t1, fn, look = 'day') => SHOTS.push({ t0, t1, fn, look });
+
+// 1–2 · alarm, «ДЕНЬ 1», then again «ДЕНЬ 1. СНОВА»
+shot(0, 1.4, (l, t) => { alarmShot(l, .1, .8); stamp('ДЕНЬ 1', 540, 470, l, .9); }, 'room');
+shot(1.4, 3.0, (l, t) => {
+  alarmShot(l, .35, 0);
+  if (l > .55) { const p = back(prog(l, .55, .85), 2); seryoga(g, { x: 880, y: 1920 + 650 - p * 330, s: 1.15, face: -.5, eyeOpen: 1.35, mouth: 'o', mouthOpen: 1, brow: 1, pupil: [-.8, 0], hat: false }, ROOM); }
+  stamp('ДЕНЬ 1.', 540, 400, l, .7); stamp('СНОВА', 560, 580, l, .95, '#e8443a', 140, .06);
+  rewind(l, 0, .35);
+}, 'room');
+// 3 · bedroom: jump out, run to the door
+shot(3.0, 5.0, (l, t) => {
+  bedroomWide(t, { camel: true });
+  const run = prog(l, .45, 1.8);
+  const x = lerp(260, 1150, eIn(run) * .3 + run * .7), y = 1500 - Math.sin(prog(l, .1, .45) * Math.PI) * 120 * (l < .45);
+  seryoga(g, { x, y, s: .85, face: .8, walk: run > 0 ? l * 22 : null, lean: run > 0 ? .12 : 0, mouth: 'grin', brow: .5, pupil: [1, 0] }, ROOM);
+  g.fillStyle = '#5b7fb8'; rr(-60, 1180, 520 - run * 80, 220, 30); g.fill(); // blanket thrown
+});
+// 4 · Burj queue, noon → sunset
+shot(5.0, 7.6, (l, t) => {
+  const p = prog(l, .2, 2.3);
+  const sky = lg(0, 0, 0, H, [[0, `hsl(${lerp(205, 260, p)},${lerp(80, 45, p)}%,${lerp(66, 30, p)}%)`], [.6, `hsl(${lerp(195, 18, p)},${lerp(70, 85, p)}%,${lerp(80, 62, p)}%)`], [1, `hsl(${lerp(40, 25, p)},85%,${lerp(78, 60, p)}%)`]]);
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  const sx = lerp(820, 120, p), sy = lerp(250, 1050, Math.pow(p, 1.4));
+  g.fillStyle = `rgba(255,${lerp(250, 170, p)},${lerp(200, 90, p)},.95)`; g.beginPath(); g.arc(sx, sy, 80, 0, TAU); g.fill();
+  skyline(1250, `hsl(${lerp(210, 280, p)},25%,${lerp(70, 35, p)}%)`, 7, .9);
+  burj(540, 1260, 1150, `hsl(${lerp(210, 270, p)},20%,${lerp(62, 28, p)}%)`);
+  g.fillStyle = lg(0, 1250, 0, H, [[0, '#e7c08e'], [1, '#c58f5d']]); g.fillRect(0, 1250, W, H);
+  g.fillStyle = `rgba(80,20,80,${.15 + p * .2})`; g.fillRect(0, 1250, W, H);
+  // queue: little tourists snaking
+  for (let i = 0; i < 46; i++) {
+    const row = Math.floor(i / 12), k = i % 12; const dir = row % 2 ? -1 : 1;
+    const qx = 540 + dir * (k - 5.5) * 70, qy = 1330 + row * 70;
+    g.fillStyle = ['#ff7b39', '#1fa59a', '#8a5bff', '#ffd34d', '#ff3d8b', '#35a0ff'][i % 6];
+    rr(qx - 18, qy - 70, 36, 60, 14); g.fill(); g.fillStyle = '#f2c29a'; g.beginPath(); g.arc(qx, qy - 86, 15, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(40,10,60,.25)'; g.beginPath(); g.ellipse(qx, qy - 6, 22, 6, 0, 0, TAU); g.fill();
+  }
+  // queue barrier
+  g.strokeStyle = '#c9a54a'; g.lineWidth = 6; for (let r = 0; r < 4; r++) { g.beginPath(); g.moveTo(80, 1345 + r * 70); g.lineTo(1000, 1345 + r * 70); g.stroke(); }
+  barkhan(g, { x: 150, y: 1290, s: .32, face: 1, chew: t * 6, lid: .55 }, p > .6 ? SUNSET : DAY);
+  const L = p > .6 ? SUNSET : DAY;
+  seryoga(g, { x: 830, y: 1700, s: .62, face: -.5, lean: p * .12, mouth: p > .5 ? 'frown' : 'flat', eyeOpen: lerp(1, .55, p), brow: lerp(0, -.5, p), sweat: clamp(p * 2), blush: .5 + p * .4, armL: [.1, -.1], armR: [-.1, .1] }, L);
+  // time badge
+  const hh = Math.floor(lerp(12, 19, p)), mm = Math.floor((lerp(12, 19, p) % 1) * 60);
+  g.save(); rr(380, 150, 320, 110, 30); g.fillStyle = 'rgba(15,20,45,.75)'; g.fill(); g.restore();
+  txt(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`, 540, 207, 72, '#fff', { fam: '"JetBrains Mono", monospace', w: 800 });
+}, 'day');
+// 5 · the stare: Seryoga turns to the camel, camel blinks, «мррф»
+shot(7.6, 8.8, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#5b3c8a'], [.6, '#ff9a6a'], [1, '#ffcf8f']]); g.fillRect(0, 0, W, H);
+  burj(820, 1400, 1300, 'rgba(70,40,110,.55)');
+  g.fillStyle = '#d6955e'; g.fillRect(0, 1400, W, H);
+  const turn = eIO(prog(l, .1, .55));
+  barkhan(g, { x: 1060, y: 1700, s: .95, face: -1, chew: l < .55 || l > .95 ? t * 6 : 0, lid: .55, blink: l > .6 && l < .72 ? 1 : 0, pupil: [-1, .1] }, SUNSET);
+  seryoga(g, { x: 280, y: 1850, s: 1.05, face: lerp(-.3, .9, turn), mouth: 'flat', eyeOpen: .75, brow: -.3, pupil: [lerp(-.5, 1, turn), 0], sweat: .8, blush: .8 }, SUNSET);
+}, 'sunset');
+// 6 · alarm again, harder slap
+shot(8.8, 9.6, (l, t) => { alarmShot(l, .2, .5); stamp('ДЕНЬ 1', 540, 470, l, .55, '#e8443a', 110, .1); rewind(l, 0, .22); }, 'room');
+// 7a · balcony: buying online
+shot(9.6, 10.8, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#8fd0ff'], [1, '#ffe2b6']]); g.fillRect(0, 0, W, H);
+  skyline(1250, '#a9c3db', 11, 1.1); burj(250, 1260, 900, '#94b2cf');
+  g.fillStyle = '#f0e2cc'; g.fillRect(0, 1250, W, H);
+  seryoga(g, { x: 560, y: 1880, s: 1.1, face: .2, mouth: 'flat', brow: -.4, eyeOpen: .9, pupil: [.4, .6],
+    armR: [2.2, -1.8], prop: (gg, ex, ey) => phoneDevice(ex + 10, ey - 70, .32, -.15, () => { g.fillStyle = '#fff'; g.fillRect(-160, -330, 320, 660); }) }, DAY);
+  g.fillStyle = '#ffffff'; g.fillRect(0, 1560, W, 18); for (let x = 20; x < W; x += 70) g.fillRect(x, 1560, 12, 360);
+}, 'day');
+// 7b · phone close-up: 225 AED
+shot(10.8, 12.4, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#8fd0ff'], [1, '#f6d6aa']]); g.fillRect(0, 0, W, H);
+  phoneDevice(540, 980, 2.3, -.04, () => {
+    g.fillStyle = '#f4f6fb'; g.fillRect(-160, -330, 320, 660);
+    g.fillStyle = '#1b2a4a'; g.fillRect(-160, -330, 320, 70); txt('Официальный сайт', 0, -290, 17, '#fff', { w: 700 });
+    burj(0, -60, 170, '#9fb6d1'); txt('Бурдж-Халифа · 124 этаж', 0, -30, 18, '#1b2a4a', { w: 800 });
+    txt('225 AED', 0, 40, 58, '#e8443a', { w: 900 });
+    const pressed = l > .75; rr(-120, 120, 240, 64, 32); g.fillStyle = pressed ? '#16a34a' : '#2563eb'; g.fill();
+    txt(pressed ? 'Оплачено ✓' : 'Купить', 0, 153, 26, '#fff', { w: 800 });
+  });
+  const tp = l < .75 ? eOut(prog(l, .2, .7)) : 1 - eOut(prog(l, .8, 1.2));
+  mitten(lerp(900, 600, tp), lerp(1700, 1400, tp), 1.6, -.5, DAY);
+}, 'day');
+// 8 · eye twitch, camel head slides in
+shot(12.4, 14.2, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#9ad5ff'], [1, '#ffe2b6']]); g.fillRect(0, 0, W, H);
+  skyline(1500, '#b4cbe0', 13, 1.2);
+  const tw = l > .25 && l < 1.3 ? (Math.sin(l * 55) > .2 ? 1 : 0) : 0;
+  seryoga(g, { x: 430, y: 2900, s: 2.35, face: .15, mouth: 'grit', eyeOpen: .95, brow: -.3, browTilt: .6, twitch: tw, sweat: 1, pupil: [.3, 0] }, DAY);
+  const cp = eOut(prog(l, .7, 1.25));
+  barkhan(g, { x: lerp(2300, 1480, cp), y: 2050, s: 1.55, face: -1, chew: l > 1.25 ? t * 7 : 0, lid: .55, pupil: [-1, .4], neck: .1 }, DAY);
+}, 'day');
+// 9 · alarm, he's already awake (obsessed)
+shot(14.2, 15.0, (l, t) => {
+  bedroomWall(t, .6);
+  seryoga(g, { x: 540, y: 2180, s: 1.6, face: 0, eyeOpen: 1.25, mouth: 'flat', brow: .6, bags: 1, blush: 0, pupil: [0, 0], hat: false }, ROOM);
+  g.fillStyle = '#5b7fb8'; rr(-50, 1640, 1180, 500, 60); g.fill();
+  alarmClock(890, 1300, .7, t, l > .35, 0);
+  stamp('ДЕНЬ 1', 540, 330, l, .45, '#e8443a', 100, -.05);
+  rewind(l, 0, .2);
+}, 'room');
+// 10 · hotel lobby: paying, wallet inside out, a moth
+shot(15.0, 18.6, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#3b2a4a'], [.5, '#8a5a4a'], [1, '#d9b48a']]); g.fillRect(0, 0, W, H);
+  // columns + chandelier
+  g.fillStyle = 'rgba(255,230,190,.25)'; [80, 980].forEach(x => g.fillRect(x - 50, 0, 100, 1350));
+  const cg = g.createRadialGradient(540, 260, 10, 540, 260, 420); cg.addColorStop(0, 'rgba(255,220,140,.8)'); cg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = cg; g.fillRect(0, 0, W, 800);
+  g.fillStyle = '#ffd98a'; for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(400 + i * 35, 260 + Math.sin(i) * 20, 10, 0, TAU); g.fill(); }
+  // marble floor
+  g.fillStyle = '#efe3cf'; g.fillRect(0, 1350, W, H);
+  g.fillStyle = 'rgba(120,90,70,.12)'; for (let r = 0; r < 8; r++) for (let c = 0; c < 9; c++) if ((r + c) % 2) g.fillRect(c * 130 - (r * 20), 1350 + r * 75, 130, 75);
+  palmPot(150, 1240, .9, t); palmPot(330, 1300, .6, t);
+  barkhan(g, { x: 230, y: 1560, s: .5, face: 1, chew: t * 6, lid: .55, pupil: [1, 0] }, ROOM);
+  // excursion desk
+  g.fillStyle = '#5a3324'; rr(560, 1180, 500, 330, 20); g.fill(); g.fillStyle = '#8b5136'; rr(540, 1160, 540, 50, 14); g.fill();
+  g.fillStyle = '#1b2a4a'; rr(640, 880, 360, 110, 16); g.fill(); txt('ЭКСКУРСИИ', 820, 935, 46, '#ffd34d', { w: 900 });
+  // money stack grows
+  const n = Math.floor(prog(l, .5, 2.3) * 9);
+  for (let i = 0; i < n; i++) { g.fillStyle = i % 2 ? '#5fd38a' : '#4cbf78'; rr(700 + rnd(i) * 30, 1150 - i * 12, 170, 30, 6); g.fill(); g.strokeStyle = '#2e8f55'; g.lineWidth = 3; g.stroke(); }
+  // flying bill
+  if (l > .5 && l < 2.3) { const k = (l * 3.2) % 1; g.save(); g.translate(lerp(560, 760, k), lerp(1150, 1080, k) - Math.sin(k * Math.PI) * 120); g.rotate(k * 5); g.fillStyle = '#5fd38a'; rr(-60, -16, 120, 32, 6); g.fill(); g.restore(); }
+  const empty = l > 2.5;
+  seryoga(g, { x: 470, y: 1800, s: .95, face: .7, mouth: empty ? 'o' : 'flat', eyeOpen: empty ? 1.3 : 1.15, bags: .8, blush: .1, brow: empty ? 1 : .4, pupil: [empty ? 0 : 1, empty ? .5 : .3],
+    armR: empty ? [2.0, -1.2] : [1.6 + Math.sin(l * 12) * .2, -.6], prop: (gg, ex, ey) => {
+      if (!empty) return; // inside-out wallet
+      g.save(); g.translate(ex + 10, ey - 50); g.fillStyle = '#6b3d26'; rr(-60, -36, 120, 72, 10); g.fill(); g.fillStyle = '#e9d6c0'; rr(-46, 20, 34, 40, 6); g.fill(); rr(12, 20, 34, 40, 6); g.fill(); g.restore(); } }, ROOM);
+  if (l > 2.6) { // moth flies out
+    const k = prog(l, 2.6, 3.6); const mx = 620 + k * 300 + Math.sin(l * 20) * 30, my = 1150 - k * 700 + Math.cos(l * 17) * 30;
+    g.save(); g.translate(mx, my); g.fillStyle = '#c9b8a0'; const fl = Math.abs(Math.sin(l * 40));
+    g.beginPath(); g.ellipse(-16, 0, 20, 12 * fl + 3, -.4, 0, TAU); g.ellipse(16, 0, 20, 12 * fl + 3, .4, 0, TAU); g.fill(); g.fillStyle = '#6d5a48'; g.beginPath(); g.ellipse(0, 0, 6, 14, 0, 0, TAU); g.fill(); g.restore();
+  }
+}, 'room');
+// 11 · turn to the camel in the lobby
+shot(18.6, 19.8, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#5a3b52'], [1, '#d9b48a']]); g.fillRect(0, 0, W, H);
+  palmPot(900, 1250, 1.2, t);
+  g.fillStyle = '#efe3cf'; g.fillRect(0, 1450, W, H);
+  const turn = eIO(prog(l, .15, .7));
+  barkhan(g, { x: 20, y: 1800, s: .95, face: 1, chew: t * 6, lid: .55, pupil: [1, 0] }, ROOM);
+  seryoga(g, { x: 760, y: 1950, s: 1.1, face: lerp(.6, -.9, turn), mouth: 'flat', eyeOpen: 1.2, bags: 1, blush: 0, brow: .5, pupil: [lerp(.5, -1, turn), 0] }, ROOM);
+}, 'room');
+// 12 · night storm in the desert, the camel brings the phone
+shot(19.8, 24.6, (l, t) => {
+  const z = 1 + l * .025; g.save(); g.translate(W / 2, H / 2); g.scale(z, z); g.translate(-W / 2, -H / 2);
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#050a22'], [.55, '#13214a'], [1, '#1d3160']]); g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 120; i++) { g.fillStyle = `rgba(255,255,255,${.3 + rnd(i) * .6 * (.6 + .4 * Math.sin(t * 3 + i))})`; g.fillRect(rnd(i + 1) * W, rnd(i + 2) * 900, 3, 3); }
+  g.fillStyle = '#eef4ff'; g.beginPath(); g.arc(820, 330, 70, 0, TAU); g.fill(); const mg = g.createRadialGradient(820, 330, 60, 820, 330, 300); mg.addColorStop(0, 'rgba(170,200,255,.35)'); mg.addColorStop(1, 'rgba(170,200,255,0)'); g.fillStyle = mg; g.fillRect(500, 0, 600, 700);
+  // far city glow = the one warm light
+  const wg = g.createRadialGradient(180, 1180, 10, 180, 1180, 260); wg.addColorStop(0, 'rgba(255,190,100,.85)'); wg.addColorStop(1, 'rgba(255,150,60,0)'); g.fillStyle = wg; g.fillRect(0, 900, 500, 500);
+  g.fillStyle = 'rgba(255,200,120,.9)'; for (let i = 0; i < 14; i++) g.fillRect(90 + i * 13, 1170 - rnd(i) * 60, 6, 6);
+  g.fillStyle = '#0f1b3d'; g.beginPath(); g.moveTo(0, 1200); g.quadraticCurveTo(400, 1080, 1080, 1220); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+  const walk = prog(l, .8, 2.6), sit = eIO(prog(l, 2.6, 3.2)), push = eIO(prog(l, 3.6, 4.4));
+  barkhan(g, { x: lerp(-300, 360, walk), y: 1520, s: .62, face: 1, walk: walk > 0 && walk < 1 ? l * 7 : null, sit, lid: .6, neck: push * .55, headTilt: push * .3, chew: sit > .9 && push < .1 ? t * 5 : 0, pupil: [1, .3] }, NIGHT);
+  // phone pushed over the sand
+  if (push > 0) phoneDevice(lerp(560, 640, push), 1500, .22, 1.5, () => { g.fillStyle = '#ffd9a0'; g.fillRect(-160, -330, 320, 660); });
+  if (push > 0) { const pg = g.createRadialGradient(640, 1490, 5, 640, 1490, 180); pg.addColorStop(0, `rgba(255,200,120,${.6 * push})`); pg.addColorStop(1, 'rgba(255,170,90,0)'); g.fillStyle = pg; g.fillRect(400, 1300, 500, 400); }
+  seryoga(g, { x: 760, y: 1900, s: .8, face: lerp(.1, -.6, push), mouth: 'frown', eyeOpen: lerp(.55, 1.1, push), bags: 1, blush: 0, brow: -.2, pupil: [lerp(0, -.8, push), .6], armL: [.9, -1.8], armR: [-.9, 1.8] }, NIGHT);
+  g.fillStyle = '#16264f'; g.beginPath(); g.moveTo(0, 1560); g.quadraticCurveTo(500, 1480, 1080, 1600); g.lineTo(W, H); g.lineTo(0, H); g.fill(); // dune crest hides legs
+  // blowing sand
+  g.save(); g.strokeStyle = 'rgba(200,220,255,.18)'; g.lineWidth = 3; for (let i = 0; i < 70; i++) { const y = rnd(i) * H, x = ((t * (700 + rnd(i + 1) * 500) + rnd(i + 2) * W) % (W + 200)) - 100; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 80, y + 6); g.stroke(); } g.restore();
+  g.restore();
+}, 'night');
+// 13 · the phone glow: Aziz's chat
+shot(24.6, 27.0, (l, t) => {
+  g.fillStyle = '#0a1230'; g.fillRect(0, 0, W, H);
+  seryoga(g, { x: 540, y: 3000, s: 2.4, face: 0, mouth: l > 1.5 ? 'smile' : 'flat', eyeOpen: lerp(.9, .75, prog(l, 1.5, 2)), bags: lerp(1, .3, prog(l, 1.5, 2.2)), blush: prog(l, 1.5, 2) * .5, brow: lerp(-.2, .5, prog(l, 1.5, 2)), pupil: [0, .8] }, PHONE);
+  g.fillStyle = 'rgba(5,10,40,.55)'; g.fillRect(0, 0, W, H);
+  const gl = g.createRadialGradient(540, 1350, 30, 540, 1350, 900); gl.addColorStop(0, 'rgba(255,190,110,.55)'); gl.addColorStop(1, 'rgba(255,160,80,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+  phoneDevice(540, 1500, 1.25, .03, () => {
+    g.fillStyle = '#fff3e2'; g.fillRect(-160, -330, 320, 660);
+    g.fillStyle = '#0d1330'; g.fillRect(-160, -330, 320, 90);
+    g.fillStyle = '#ffc94a'; g.beginPath(); g.arc(-110, -280, 26, 0, TAU); g.fill(); txt('А', -110, -278, 28, '#0d1330');
+    txt('Азиз | Гид в Эмиратах', -72, -292, 17, '#fff', { w: 800, al: 'left' }); txt('в сети', -72, -265, 14, '#35e0a0', { w: 700, al: 'left' });
+    const p = prog(l, .5, .8); if (p > 0) { g.save(); g.translate(-130, -200); g.scale(back(p), back(p)); rr(0, 0, 250, 110, 22); g.fillStyle = '#fff'; g.fill();
+      g.font = `600 19px ${F}, ${EMO}`; g.fillStyle = '#1b2033'; g.textAlign = 'left'; g.textBaseline = 'middle'; ['Здравствуйте! Помогу', 'спланировать каждый', 'день 🙂'].forEach((s, i) => g.fillText(s, 18, 28 + i * 26)); g.restore(); }
+  });
+}, 'phone');
+// 14 · new morning: calm, he switches it off himself
+shot(27.0, 28.4, (l, t) => {
+  alarmShot(l, 9, 0, { hands: [6, 58] });
+  const p = eOut(prog(l, .1, .45));
+  if (l < .7) mitten(lerp(800, 600, p), lerp(1500, 960, p), 2.0, -.3, ROOM);
+  if (l > .55) { const q = back(prog(l, .55, .9), 1.6); seryoga(g, { x: 540, y: 1920 + 500 - q * 420, s: 1.2, face: 0, mouth: 'grin', eyeOpen: .55, brow: .6, armL: [-2.6, .3], armR: [2.6, -.3], hat: false }, ROOM); }
+  stamp('ДЕНЬ 1 ✓', 540, 430, l, .8, '#16a34a', 110, -.06);
+}, 'room');
+// 15 · happy montage (4 beats)
+shot(28.4, 30.15, (l, t) => { // plan with ticks
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#ffe2b0'], [1, '#ffc58a']]); g.fillRect(0, 0, W, H);
+  g.save(); g.translate(540, 900); g.rotate(-.04); rr(-400, -560, 800, 1100, 40); g.fillStyle = '#fffaf0'; g.shadowColor = 'rgba(120,60,20,.35)'; g.shadowBlur = 40; g.fill(); g.restore();
+  txt('План на день', 540, 440, 72, '#2a1d3a');
+  [['08:00', 'Бурдж-Халифа', 'утро — дешевле'], ['11:00', 'Аквапарк', ''], ['16:00', 'Сафари', ''], ['Завтра', 'Яхта', '']].forEach(([h, a, b], i) => {
+    const y = 620 + i * 190; txt(h, 230, y, 44, '#e8443a', { al: 'left', fam: '"JetBrains Mono", monospace', w: 800 }); txt(a, 420, y - (b ? 18 : 0), 50, '#2a1d3a', { al: 'left' }); if (b) txt(b, 420, y + 34, 32, '#7a5a48', { al: 'left', w: 700 });
+    const p = prog(l, .25 + i * .3, .45 + i * .3); if (p > 0) { g.save(); g.translate(880, y); g.scale(back(p), back(p)); g.beginPath(); g.arc(0, 0, 38, 0, TAU); g.fillStyle = '#16a34a'; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.moveTo(-16, 0); g.lineTo(-4, 13); g.lineTo(18, -12); g.stroke(); g.restore(); }
+  });
+  barkhan(g, { x: 1130, y: 2080, s: .9, face: -1, chew: t * 6, lid: .5, pupil: [-1, -.5] }, DAY);
+}, 'day');
+shot(30.15, 31.9, (l, t) => { // Burj observation deck, price
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#ffb98a'], [.5, '#ffe0b8'], [1, '#bfe3ff']]); g.fillRect(0, 0, W, H);
+  skyline(1500, '#9fb7cf', 21, 1.3); g.fillStyle = 'rgba(255,255,255,.18)'; for (let i = 0; i < 5; i++) g.fillRect(i * 260, 0, 12, H);
+  g.fillStyle = '#2d3550'; g.fillRect(0, 1500, W, H);
+  seryoga(g, { x: 430, y: 1900, s: 1.0, face: .4, mouth: 'grin', eyeOpen: .6, brow: .6, armR: [2.7, -.2], armL: [.2, -.2] }, DAY);
+  const p = back(prog(l, .3, .7));
+  g.save(); g.translate(800, 620); g.rotate(.1 + Math.sin(l * 4) * .03); g.scale(p, p);
+  rr(-210, -120, 420, 240, 30); g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 30; g.fill(); g.shadowBlur = 0;
+  txt('225 AED', 0, -45, 54, '#9aa0b5'); g.strokeStyle = '#e8443a'; g.lineWidth = 8; g.beginPath(); g.moveTo(-120, -40); g.lineTo(120, -50); g.stroke();
+  txt('149 AED', 0, 50, 84, '#16a34a'); g.restore();
+}, 'day');
+shot(31.9, 33.65, (l, t) => { // aquapark slide
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#6fd0ff'], [1, '#d9f6ff']]); g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#ff7b39'; g.lineWidth = 170; g.lineCap = 'round'; g.beginPath(); g.moveTo(-100, 200); g.bezierCurveTo(900, 300, 100, 900, 700, 1300); g.stroke();
+  g.strokeStyle = '#ffb07a'; g.lineWidth = 120; g.stroke();
+  g.fillStyle = '#1aa7e0'; g.fillRect(0, 1450, W, H); g.fillStyle = 'rgba(255,255,255,.4)'; for (let i = 0; i < 8; i++) g.fillRect(((i * 170 + t * 120) % (W + 100)) - 50, 1480 + i * 50, 120, 8);
+  const p = prog(l, 0, 1.1); const k = eIn(p);
+  const x = lerp(0, 760, k), y = lerp(260, 1380, k) + Math.sin(k * 6) * 40;
+  if (p < 1) seryoga(g, { x, y, s: .75, face: .6, lean: -.5, mouth: 'grin', eyeOpen: .5, brow: 1, armL: [-2.8, 0], armR: [2.8, 0] }, DAY);
+  if (l > 1.1) { const q = prog(l, 1.1, 1.75); g.fillStyle = `rgba(255,255,255,${1 - q})`; for (let i = 0; i < 14; i++) { const a = -Math.PI * rnd(i); g.beginPath(); g.arc(760 + Math.cos(a) * q * 300, 1450 + Math.sin(a) * q * 400 + q * q * 300, 18 + rnd(i) * 12, 0, TAU); g.fill(); } }
+}, 'day');
+shot(33.65, 35.4, (l, t) => { // safari: jeep + camel running
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#5b3c8a'], [.5, '#ff8a5c'], [1, '#ffcf8f']]); g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(255,230,160,.95)'; g.beginPath(); g.arc(540, 980, 140, 0, TAU); g.fill();
+  g.fillStyle = '#d98b52'; g.beginPath(); g.moveTo(0, 1100); g.quadraticCurveTo(540, 980, 1080, 1120); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+  g.fillStyle = '#c4733e'; g.beginPath(); g.moveTo(0, 1400); g.quadraticCurveTo(600, 1300, 1080, 1420); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+  const bump = Math.sin(t * 18) * 6;
+  barkhan(g, { x: 230 + Math.sin(l * 2) * 20, y: 1500, s: .55, face: 1, walk: t * 12, lid: .3, pupil: [1, -.3] }, SUNSET);
+  g.save(); g.translate(660, 1500 + bump); // jeep
+  g.fillStyle = '#ffffff'; rr(-260, -230, 520, 170, 30); g.fill(); g.fillStyle = '#e8443a'; g.fillRect(-260, -150, 520, 20);
+  g.fillStyle = '#9fd3ff'; rr(-60, -330, 200, 110, 14); g.fill();
+  [-170, 170].forEach(wx => { g.fillStyle = '#222'; g.beginPath(); g.arc(wx, -50, 62, 0, TAU); g.fill(); g.fillStyle = '#999'; g.beginPath(); g.arc(wx, -50, 26, 0, TAU); g.fill(); });
+  g.restore();
+  seryoga(g, { x: 560, y: 1460 + bump, s: .5, face: -.4, mouth: 'grin', eyeOpen: .55, brow: 1, armL: [-2.7, .4], armR: [.3, -.2] }, SUNSET);
+  g.fillStyle = 'rgba(217,139,82,.5)'; for (let i = 0; i < 10; i++) { g.beginPath(); g.arc(900 + i * 30 + (t * 200 % 60), 1460 - rnd(i) * 40, 30 + rnd(i) * 30, 0, TAU); g.fill(); }
+}, 'sunset');
+// 16 · the selfie
+shot(35.4, 39.0, (l, t) => {
+  g.save();
+  const frozen = l > 1.8; const lf = frozen ? 1.8 : l;
+  if (frozen) { const p = eOut(prog(l, 1.8, 2.5)); g.fillStyle = '#2a1d3a'; g.fillRect(0, 0, W, H); g.translate(540, 900); g.rotate(-.06 * p); g.scale(lerp(1, .78, p), lerp(1, .78, p)); g.translate(-540, -900);
+    g.fillStyle = '#fffaf0'; g.fillRect(-20, -40, W + 40, H + 260); }
+  g.save(); g.beginPath(); g.rect(frozen ? 40 : 0, frozen ? 40 : 0, frozen ? W - 80 : W, frozen ? 1700 : H); g.clip();
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#4a3480'], [.55, '#ff8f66'], [1, '#ffd29a']]); g.fillRect(0, 0, W, H);
+  skyline(1350, 'rgba(70,40,110,.6)', 31, 1.1); burj(540, 1360, 1250, 'rgba(60,35,100,.85)');
+  g.fillStyle = '#e2a46c'; g.fillRect(0, 1350, W, H);
+  barkhan(g, { x: 700, y: 1750, s: .95, face: -1, chew: frozen ? 0 : t * 5, lid: .35, pupil: [-.3, -.4], headTilt: -.15, neck: .15 }, SUNSET);
+  seryoga(g, { x: 360, y: 1880, s: 1.0, face: .3, mouth: 'grin', eyeOpen: .5, brow: .7, armR: [2.6, -.4], armL: [.2, -.3], prop: (gg, ex, ey) => phoneDevice(ex + 20, ey - 60, .22, .2, () => { g.fillStyle = '#222'; g.fillRect(-160, -330, 320, 660); }) }, SUNSET);
+  g.restore();
+  if (frozen) txt('Дубай · день 1 ✓', 540, 1860, 64, '#2a1d3a', { fam: F, w: 800 });
+  g.restore();
+  const f = 1 - prog(l, 1.8, 2.1); if (l > 1.8 && f > 0) { g.fillStyle = `rgba(255,255,255,${f})`; g.fillRect(0, 0, W, H); }
+}, 'sunset');
+// 17 · end card
+shot(39.0, 45.0, (l, t) => {
+  g.fillStyle = lg(0, 0, 0, H, [[0, '#1a1236'], [1, '#3a1d4a']]); g.fillRect(0, 0, W, H);
+  const gl = g.createRadialGradient(540, 700, 20, 540, 700, 700); gl.addColorStop(0, 'rgba(255,170,80,.35)'); gl.addColorStop(1, 'rgba(255,150,60,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+  const a = (k, t0) => { const p = eOut(prog(l, t0, t0 + .5)); g.globalAlpha = p; return (1 - p) * 40; };
+  let d = a(0, .1); txt('Не повторяйте', 540, 420 + d, 92, '#fff'); txt('чужих ошибок', 540, 530 + d, 92, '#ffc94a'); g.globalAlpha = 1;
+  d = a(0, .9);
+  ['Билеты · экскурсии · парки', 'групповые и индивидуальные'].forEach((s, i) => txt(s, 540, 720 + i * 70 + d, 50, '#fff', { w: 700 }));
+  txt('выгодно у Азиза', 540, 880 + d, 84, '#ffc94a', { glow: 'rgba(255,170,60,.5)' }); g.globalAlpha = 1;
+  d = a(0, 1.8); g.save(); g.translate(540, 1080 + d); rr(-370, -75, 740, 150, 75); g.fillStyle = 'rgba(255,255,255,.1)'; g.fill(); g.strokeStyle = 'rgba(255,214,120,.7)'; g.lineWidth = 3; g.stroke(); txt('@AzizDubaiGuide', 0, 4, 80, '#fff'); g.restore(); g.globalAlpha = 1;
+  d = a(0, 2.4); txt('Пишите — спланирую ваш день', 540, 1240 + d, 46, 'rgba(255,255,255,.85)', { w: 700 }); g.globalAlpha = 1;
+  g.globalAlpha = prog(l, 2.8, 3.3); txt('Бурдж-Халифа, 124 этаж, обычное время: касса 225 AED, у Азиза 149 AED. Цены на ноябрь 2026', 540, 1420, 22, 'rgba(255,255,255,.55)', { w: 600 }); g.globalAlpha = 1;
+  const cp = eOut(prog(l, 3.2, 3.9));
+  barkhan(g, { x: 1180 - cp * 260, y: 2150, s: 1.0, face: -1, chew: l > 5 ? 0 : t * 5, lid: l > 5.1 && l < 5.3 ? .95 : .55, pupil: [-1, -.4], neck: .2 }, { ...ROOM, dir: 1 });
+}, 'end');
+
+// ---------------------------------------------------------------- grade + finish
+const NOISE = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); const d = x.createImageData(256, 256); for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } x.putImageData(d, 0, 0); return c; })();
+function finish(t, look) {
+  if (look === 'night') { g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = 'rgba(150,170,230,1)'; g.fillRect(0, 0, W, H); g.restore(); }
+  if (look === 'sunset') { g.save(); g.globalCompositeOperation = 'soft-light'; g.fillStyle = 'rgba(255,140,80,.35)'; g.fillRect(0, 0, W, H); g.restore(); }
+  if (look === 'day' || look === 'room') { g.save(); g.globalCompositeOperation = 'soft-light'; g.fillStyle = 'rgba(255,200,140,.25)'; g.fillRect(0, 0, W, H); g.restore(); }
+  const v = g.createRadialGradient(W / 2, H / 2, H * .32, W / 2, H / 2, H * .78); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, look === 'night' ? 'rgba(0,0,20,.7)' : 'rgba(40,10,30,.45)'); g.fillStyle = v; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = .07; g.globalCompositeOperation = 'overlay'; const ox = (t * 977) % 256, oy = (t * 613) % 256; g.translate(-ox, -oy);
+  for (let y = 0; y < H + 256; y += 256) for (let x = 0; x < W + 256; x += 256) g.drawImage(NOISE, x, y); g.restore();
+  const fi = 1 - prog(t, 0, .2); if (fi > 0) { g.fillStyle = `rgba(0,0,0,${fi})`; g.fillRect(0, 0, W, H); }
+  const fo = prog(t, DUR - .5, DUR); if (fo > 0) { g.fillStyle = `rgba(0,0,0,${fo})`; g.fillRect(0, 0, W, H); }
+}
+function drawFrame(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  const s = SHOTS.find(s => t >= s.t0 && t < s.t1) || SHOTS[SHOTS.length - 1];
+  g.save(); s.fn(t - s.t0, t); g.restore();
+  finish(t, s.look);
+}
+const SUB = 2, SHUTTER = .5 / FPS;
+function renderAt(t) {
+  for (let k = 0; k < SUB; k++) { drawFrame(t + (k / SUB - .25) * SHUTTER); octx.globalAlpha = 1 / (k + 1); octx.drawImage(buf, 0, 0); }
+  octx.globalAlpha = 1;
+}
+window.renderFrame = i => renderAt(i / FPS);
+window.TOTAL = Math.round(DUR * FPS);
+window.SHOTS = SHOTS;
+if (!window.__RENDER__) { const st = performance.now(); (function loop() { renderAt(((performance.now() - st) / 1000) % DUR); requestAnimationFrame(loop); })(); }
+</script></body></html>
