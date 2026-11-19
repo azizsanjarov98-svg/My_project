@@ -175,29 +175,18 @@ const shot = (t0, t1, fn, look = 'day') => SHOTS.push({ t0, t1, fn, look });
 // =====================================================================
 const PRICE_SITE = 225, PRICE_AZIZ = 185;
 
-// ---------- brand emblem: «@AzizDubaiGuide» + Burj + palm (as in the brand image)
-function logo(x, y, size, alpha = 1, col = '#eaf2ff') {
-  g.save(); g.globalAlpha *= alpha;
-  g.font = `800 ${size}px ${F}`; g.letterSpacing = '-1px';
-  const label = '@AzizDubaiGuide', w = g.measureText(label).width, ic = size * 1.05;
-  const x0 = x - (w + ic * .9) / 2;
-  g.shadowColor = 'rgba(0,20,60,.35)'; g.shadowBlur = size * .25; g.shadowOffsetY = size * .05;
-  g.fillStyle = col; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(label, x0, y + size * .35);
-  g.shadowBlur = 0; g.shadowOffsetY = 0;
-  // icon: slim Burj + palm, sitting on a swoosh after the last letter
-  const ix = x0 + w + ic * .12, base = y + size * .38;
-  g.fillStyle = col; g.strokeStyle = col;
-  burj(ix + ic * .2, base, ic * 1.15, col);
-  g.lineWidth = Math.max(2, size * .06); g.lineCap = 'round';
-  g.beginPath(); g.moveTo(ix + ic * .62, base); g.quadraticCurveTo(ix + ic * .6, base - ic * .45, ix + ic * .55, base - ic * .82); g.stroke();
-  for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + (k - 2.5) * .55; g.beginPath(); g.moveTo(ix + ic * .55, base - ic * .82);
-    g.quadraticCurveTo(ix + ic * .55 + Math.cos(a) * ic * .28, base - ic * .82 + Math.sin(a) * ic * .28 - ic * .1, ix + ic * .55 + Math.cos(a) * ic * .5, base - ic * .82 + Math.sin(a) * ic * .5 + ic * .12); g.stroke(); }
-  g.lineWidth = Math.max(2, size * .045); g.beginPath(); g.moveTo(ix - ic * .9, base + size * .06); g.quadraticCurveTo(ix + ic * .3, base - size * .02, ix + ic * 1.0, base + size * .02); g.stroke();
+// ---------- brand emblem: the exact artwork from the brand image (assets/logo_aziz.png) + «@»
+const LOGO = new Image(); LOGO.src = 'assets/logo_aziz.png';
+function logo(x, y, size, alpha = 1) {   // size ≈ font size; the emblem is white at 61 % like in the photo
+  if (!LOGO.complete || !LOGO.naturalWidth) return;
+  const h = size * 2.43, w = h * LOGO.naturalWidth / LOGO.naturalHeight;
+  g.save(); g.globalAlpha *= alpha * .61;
+  g.drawImage(LOGO, x - w / 2, y - h * .695, w, h);
   g.restore();
 }
 function watermark(t) {
   const a = prog(t, .3, .7) * (1 - prog(t, 38.2, 38.5)); if (a <= 0) return;
-  logo(540, 150, 44, .62 * a);
+  logo(540, 150, 44, a);
 }
 // ---------- graphics: mistake header, solution panel, tickets
 function header(l, num, line) {
@@ -467,7 +456,7 @@ shot(38.4, 44.0, (l, t) => {
   const a = (t0) => { const p = eOut(prog(l, t0, t0 + .5)); g.globalAlpha = p; return (1 - p) * 40; };
   let d = a(.1); txt('Билеты и экскурсии —', 540, 420 + d, 74, '#fff'); txt('выгодно у Азиза', 540, 520 + d, 92, '#ffd34d', { glow: 'rgba(0,0,0,.25)' }); g.globalAlpha = 1;
   d = a(.8); ['Бурдж-Халифа · парки · аквапарки', 'яхты · сафари · обзорные', 'групповые и индивидуальные'].forEach((s, i) => txt(s, 540, 680 + i * 66 + d, 46, 'rgba(255,255,255,.92)', { w: 700 })); g.globalAlpha = 1;
-  const p = prog(l, 1.6, 2.1); g.save(); g.translate(540, 1000); g.scale(lerp(.8, 1, back(p)), lerp(.8, 1, back(p))); g.globalAlpha = p; logo(0, 0, 92, 1); g.restore();
+  const p = prog(l, 1.6, 2.1); g.save(); g.translate(540, 1000); g.scale(lerp(.8, 1, back(p)), lerp(.8, 1, back(p))); g.globalAlpha = p; logo(0, 0, 92, 1.3); g.restore();
   d = a(2.3); rr(170, 1150 + d, 740, 110, 55); g.fillStyle = '#ffd34d'; g.fill(); txt('Пишите в Telegram или WhatsApp', 540, 1206 + d, 44, '#0f2a5a'); g.globalAlpha = 1;
   g.globalAlpha = prog(l, 2.8, 3.3); txt(`Бурдж-Халифа, 124 этаж: официальный сайт ${PRICE_SITE} AED, у Азиза ${PRICE_AZIZ} AED. Цены на ноябрь 2026`, 540, 1340, 22, 'rgba(255,255,255,.6)', { w: 600 }); g.globalAlpha = 1;
   const cp = eOut(prog(l, 3.2, 3.9));
