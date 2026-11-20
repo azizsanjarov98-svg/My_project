@@ -271,7 +271,7 @@ shot(C.s6, C.s6b, (l, t) => {
   g.fillStyle = 'rgba(169,95,51,.9)'; g.beginPath(); g.moveTo(0, 1500); g.quadraticCurveTo(540, 1440, W, 1520); g.lineTo(W, H); g.lineTo(0, H); g.fill();
   g.restore();
   viewfinder(t, '80×');
-  speciesCard(t, wAt('nature', 10) - .1, 'Бархан', 'Camelus helpus · местный житель', 'Знает, где выгодно и без очередей', 1130);
+  speciesCard(t, wAt('nature', 10) - .1, 'Бархан', 'Camelus helpus · местный житель', 'Знает, где купить выгоднее', 1130);
 }, 'sunset');
 // 6b · he knows where to go: Barkhan slides the phone with Aziz's chat
 shot(C.s6b, C.s7, (l, t) => {
