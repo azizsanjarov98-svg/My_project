@@ -275,6 +275,16 @@
     g.fillStyle = CAM.tassel2; g.beginPath(); g.arc(-20, 32, 9, 0, TAU); g.fill();
     g.strokeStyle = CAM.tassel; g.lineWidth = 4; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(-20, 38); g.lineTo(-20 + k * 4 + Math.sin(o.chew * .5) * 3, 70); g.stroke(); }
     g.restore();
+    // optional props in head space: racing helmet, sunglasses, something held in the mouth
+    if (o.helmet) { g.save();
+      g.fillStyle = '#e8261c'; g.beginPath(); g.moveTo(-62, 5); g.bezierCurveTo(-70, -95, 70, -105, 92, -38); g.lineTo(60, -30); g.lineTo(-30, 10); g.closePath(); g.fill();
+      g.strokeStyle = '#7a0f0a'; g.lineWidth = 4; g.stroke();
+      g.fillStyle = '#ffd34d'; g.beginPath(); g.moveTo(-50, -40); g.bezierCurveTo(-20, -75, 30, -80, 70, -55); g.lineTo(66, -45); g.bezierCurveTo(30, -68, -20, -64, -46, -30); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(30,40,70,.85)'; g.beginPath(); g.moveTo(-4, -44); g.quadraticCurveTo(40, -56, 84, -36); g.lineTo(78, -20); g.quadraticCurveTo(38, -34, 0, -24); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(20, -46, 26, 5); g.restore(); }
+    if (o.shades) { g.save(); g.fillStyle = '#111827'; g.beginPath(); g.ellipse(22, -22, 32, 22, 0, 0, TAU); g.fill(); g.strokeStyle = '#000'; g.lineWidth = 5; g.beginPath(); g.moveTo(-10, -26); g.lineTo(-48, -36); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(10, -32, 10, 5, -.3, 0, TAU); g.fill(); g.restore(); }
+    if (o.mouthProp) { g.save(); g.translate(122 + Math.cos(o.chew) * 3, 40 + Math.abs(Math.sin(o.chew)) * 4); g.scale(1 / 1.45, 1 / 1.45); o.mouthProp(g); g.restore(); }
     g.restore();
     g.restore();
   }
