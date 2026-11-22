@@ -17,5 +17,5 @@ CW, CH = map(int, a.canvas.split('x'))
 L = Image.open(os.path.join(HERE, 'logo_aziz.png'))
 h = round(L.height * a.width / L.width); L = L.resize((a.width, h), Image.LANCZOS)
 pos = lambda v, size, full: {'left': 40, 'top': 40, 'center': (full - size) // 2, 'right': full - size - 40, 'bottom': full - size - 40}.get(v, None) if not str(v).lstrip('-').isdigit() else int(v)
-C = Image.new('RGBA', (CW, CH), (0, 0, 0, 0)); C.paste(L, (pos(a.x, a.width, CW), pos(a.y, h, CH)), L)
+C = Image.new('RGBA', (CW, CH), (0, 0, 0, 0)); C.alpha_composite(L, (pos(a.x, a.width, CW), pos(a.y, h, CH)))  # alpha kept exactly as in the original
 C.save(a.out); print('logo', a.width, h)
