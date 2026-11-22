@@ -1,0 +1,504 @@
+<title>Qasr Al Watan 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Forum&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed 3D stage with a docked info panel, then an editorial dossier below. */
+:root{
+  --bg:#eef0f3; --surface:#ffffff; --fg:#14213a; --muted:#5a6478; --line:#d6dbe4;
+  --lapis:#1f3f78; --gold:#a9822a; --gold-soft:#f3e7c8; --warn:#9a5b00; --warn-bg:#fff1d6;
+  --stage-top:#9fc3e6; --stage-bot:#eef0f3;
+  --f-display:"Forum","Times New Roman",serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0b1120; --surface:#131b2e; --fg:#e6e9f0; --muted:#9aa4b8; --line:#26304a;
+  --lapis:#8fb0ef; --gold:#d8b25a; --gold-soft:#2b2412; --warn:#f0b45a; --warn-bg:#2d2212;
+  --stage-top:#0d1830; --stage-bot:#0b1120; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1120; --surface:#131b2e; --fg:#e6e9f0; --muted:#9aa4b8; --line:#26304a;
+  --lapis:#8fb0ef; --gold:#d8b25a; --gold-soft:#2b2412; --warn:#f0b45a; --warn-bg:#2d2212;
+  --stage-top:#0d1830; --stage-bot:#0b1120; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+header.top{padding-block:28px 18px;display:flex;flex-wrap:wrap;gap:12px 32px;align-items:end;justify-content:space-between}
+header.top h1{font-size:clamp(34px,5vw,58px);line-height:1;color:var(--lapis)}
+header.top h1 span{font-size:.5em;color:var(--muted);display:block;margin-top:8px}
+header.top p{max-width:52ch;margin:0;color:var(--muted)}
+
+/* Stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.canvas-box{position:relative;min-height:560px;background:linear-gradient(var(--stage-top),var(--stage-bot));transition:background .6s}
+.canvas-box.night{background:linear-gradient(#050a1a,#1b2547)}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+#scene.hovering{cursor:pointer}
+.hud{position:absolute;left:12px;top:12px;display:flex;flex-wrap:wrap;gap:6px;z-index:2}
+.hud button,.chip{font:500 12px var(--f-body);border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 88%,transparent);color:var(--fg);padding:6px 11px;border-radius:999px;cursor:pointer;backdrop-filter:blur(6px)}
+.hud button[aria-pressed="true"]{background:var(--lapis);color:var(--surface);border-color:var(--lapis)}
+.hud button:focus-visible,.chip:focus-visible,.roomlist button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.tip{position:absolute;pointer-events:none;z-index:3;font:600 12px var(--f-body);background:var(--fg);color:var(--bg);padding:4px 9px;border-radius:6px;transform:translate(-50%,-140%);white-space:nowrap}
+.hint{position:absolute;left:12px;bottom:10px;font:11px var(--f-mono);color:var(--muted);z-index:2}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font:13px var(--f-mono)}
+
+.panel{border-left:1px solid var(--line);display:flex;flex-direction:column;max-height:640px;min-width:0}
+.panel .info{padding:20px;overflow-y:auto;flex:1}
+.panel h2{font-size:30px;line-height:1.1;color:var(--lapis);margin-top:6px}
+.panel .ar{font-family:var(--f-display);font-size:20px;color:var(--gold);direction:rtl;margin-top:4px}
+.panel p{margin:12px 0 0}
+.facts{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+.facts li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:baseline;border-top:1px dashed var(--line);padding-top:8px}
+.facts b{font-family:var(--f-mono);font-weight:500;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{display:inline-block;font:600 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:12px}
+.badge.ok{background:var(--gold-soft);color:var(--gold)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.note{font-size:13px;color:var(--muted)}
+.roomlist{border-top:1px solid var(--line);padding:10px;display:flex;flex-wrap:wrap;gap:6px;background:var(--bg)}
+.roomlist button{font:500 12px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 10px;border-radius:6px;cursor:pointer}
+.roomlist button.active{border-color:var(--gold);color:var(--gold)}
+
+/* Dossier */
+section.block{padding-block:56px 8px}
+section.block>h2{font-size:clamp(28px,3.4vw,40px);color:var(--lapis);margin-top:6px}
+.lead{max-width:68ch;color:var(--muted);margin-top:10px}
+.numbers{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:24px}
+.numbers div{background:var(--surface);padding:18px}
+.numbers strong{display:block;font-family:var(--f-display);font-size:38px;line-height:1;color:var(--fg);font-variant-numeric:tabular-nums}
+.numbers span{font-size:13px;color:var(--muted)}
+.timeline{list-style:none;padding:0;margin:24px 0 0;display:grid;gap:0}
+.timeline li{display:grid;grid-template-columns:120px 1fr;gap:20px;padding:14px 0;border-top:1px solid var(--line)}
+.timeline time{font:500 14px var(--f-mono);color:var(--gold)}
+.rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:24px}
+.room{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.room h3{font-size:24px;color:var(--lapis)}
+.room .zone{font:11px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.room p{margin:0;font-size:14px}
+.room .chip{align-self:flex-start;margin-top:auto;background:var(--bg)}
+.table-wrap{overflow-x:auto;margin-top:24px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:640px;background:var(--surface);font-size:14px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-top:20px}
+.cols>div{min-width:0}
+.cols h3{font-size:22px;color:var(--lapis);margin-bottom:6px}
+.cols ul{padding-left:18px;margin:0}
+.sources{columns:2 320px;gap:32px;font-size:13px;margin-top:18px;padding-left:18px}
+.sources li{break-inside:avoid;margin-bottom:6px}
+a{color:var(--lapis)}
+footer{padding-block:40px 60px;color:var(--muted);font-size:13px}
+
+@media (max-width:900px){
+  .stage{grid-template-columns:1fr}
+  .panel{border-left:0;border-top:1px solid var(--line);max-height:none}
+  .canvas-box{min-height:420px}
+  .timeline li{grid-template-columns:1fr;gap:4px}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Абу-Даби · Рас-эль-Ахдар · Президентский дворец ОАЭ</div>
+      <h1>Qasr Al Watan<span>قصر الوطن · «Дворец нации»</span></h1>
+    </div>
+    <p>Интерактивный макет и досье. Вращайте модель, нажимайте на купола, крылья и павильоны, чтобы открыть карточку зала. Факты сверены по нескольким источникам; спорные данные помечены.</p>
+  </header>
+
+  <div class="stage">
+    <div class="canvas-box" id="box">
+      <div class="loading" id="loading">Загрузка 3D-сцены…</div>
+      <canvas id="scene" aria-label="3D-макет дворца Qasr Al Watan"></canvas>
+      <div class="hud">
+        <button id="btnNight" aria-pressed="false">Ночь · Palace in Motion</button>
+        <button id="btnRoof" aria-pressed="false">Разрез (снять кровлю)</button>
+        <button id="btnSpin" aria-pressed="true">Автовращение</button>
+        <button id="btnReset">Общий вид</button>
+      </div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="hint">ЛКМ — вращать · колесо — масштаб · ПКМ — сдвиг · клик — зал</div>
+    </div>
+    <aside class="panel" aria-live="polite">
+      <div class="info" id="info"></div>
+      <nav class="roomlist" id="roomlist" aria-label="Залы"></nav>
+    </aside>
+  </div>
+  <p class="note" style="margin-top:10px">Макет схематичный: точные планы действующей резиденции главы государства не публикуются. Расположение залов по крыльям дано по описаниям официальных путеводителей и прессы; пропорции и купола стилизованы.</p>
+
+  <section class="block">
+    <div class="eyebrow">Ключевые цифры</div>
+    <h2>Дворец в числах</h2>
+    <div class="numbers">
+      <div><strong>380 000 м²</strong><span>площадь комплекса Президентского дворца (≈ 38 га)</span></div>
+      <div><strong>37 м</strong><span>диаметр центрального купола Большого зала</span></div>
+      <div><strong>60 м</strong><span>высота подкупольного пространства Большого зала</span></div>
+      <div><strong>350 000</strong><span>кристаллов в люстре зала «Дух сотрудничества», вес ≈ 12 т</span></div>
+      <div><strong>149 000</strong><span>предметов серебра, хрусталя и фарфора Президентского банкета</span></div>
+      <div><strong>50 000+</strong><span>книг и материалов в библиотеке Qasr Al Watan</span></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">История</div>
+    <h2>Хронология</h2>
+    <ol class="timeline">
+      <li><time>2010–2017</time><div>Строительство дворца в составе комплекса Президентского дворца в районе Рас-эль-Ахдар на западной оконечности острова Абу-Даби, рядом с Emirates Palace. Срок 2010 — по данным части источников; завершение в 2017 г. подтверждают несколько изданий.</div></li>
+      <li><time>10 мар 2019</time><div>Шейх Мохаммед бин Рашид Аль Мактум и шейх Мохамед бин Заид Аль Нахайян торжественно открывают Qasr Al Watan (официальный пресс-релиз Абу-Даби).</div></li>
+      <li><time>11 мар 2019</time><div>Дворец впервые открывает двери для публики как культурная достопримечательность, оставаясь рабочей резиденцией: здесь проходят государственные визиты, саммиты и заседания.</div></li>
+      <li><time>2019</time><div>Запуск вечернего светового шоу Palace in Motion на фасаде дворца.</div></li>
+      <li><time>авг 2022</time><div>После перерыва посетителям снова открыт зал «Дух сотрудничества» (The National).</div></li>
+      <li><time>май 2025</time><div>Дворец принимает государственный визит президента США; Qasr Al Watan остаётся главной площадкой для приёма глав государств.</div></li>
+    </ol>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Залы и пространства</div>
+    <h2>Все залы дворца</h2>
+    <p class="lead">Нажмите «Показать на макете», чтобы камера перелетела к залу.</p>
+    <div class="rooms" id="roomcards"></div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Архитектурный анализ</div>
+    <h2>Как устроен дворец</h2>
+    <div class="cols">
+      <div><h3>Композиция</h3><p>Симметричный ансамбль на оси «вход — Большой зал». Центральный купол доминирует над двумя крыльями. Западное крыло отдано государственным функциям: саммиты, банкеты, меджлис. Восточное — знаниям и наследию: Дом знаний и Президентские дары. Перед фасадом — регулярные сады с фонтанами, по краю — отдельные павильоны библиотеки и центра посетителей.</p></div>
+      <div><h3>Материалы и декор</h3><ul>
+        <li>Белый гранит и известняк на фасадах: цвет отражает солнце и держит единый образ с Большой мечетью шейха Зайда.</li>
+        <li>Купола и двери украшены сусальным золотом 23 карат; двери — массив дерева с ручной резьбой.</li>
+        <li>Классические мотивы исламского искусства: мукарны, геометрические орнаменты, витражи, арабская каллиграфия.</li>
+      </ul></div>
+      <div><h3>Функция</h3><p>Это не музей в чистом виде, а действующее здание: в нём работают президент, наследный принц и вице-президенты, проходят заседания Федерального высшего совета и кабинета министров, государственные визиты и саммиты ССАГПЗ и ЛАГ. Поэтому дворец иногда закрывают для посетителей из-за протокольных мероприятий.</p></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Проверка фактов</div>
+    <h2>Что подтверждено, а что спорно</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Утверждение</th><th>Статус</th><th>Комментарий</th></tr></thead>
+      <tbody>
+        <tr><td>Купол Большого зала 37 м в диаметре, высота 60 м</td><td><span class="badge ok">Подтверждено</span></td><td>Официальный сайт дворца и Википедия.</td></tr>
+        <tr><td>Люстра 350 000 кристаллов, ≈ 12 т</td><td><span class="badge ok">Подтверждено</span></td><td>Цифры совпадают во всех источниках. Где она висит, источники расходятся: чаще называют зал «Дух сотрудничества», реже — Большой зал.</td></tr>
+        <tr><td>Площадь «380 акров»</td><td><span class="badge warn">Ошибка в сети</span></td><td>Верно 380 000 м² (≈ 94 акра). Цифра в акрах — популярная путаница.</td></tr>
+        <tr><td>149 000 предметов сервировки</td><td><span class="badge ok">Подтверждено</span></td><td>Состав описывают по-разному: серебро, хрусталь и фарфор либо только фарфор с ручной гравировкой.</td></tr>
+        <tr><td>Библиотека 50 000+ книг</td><td><span class="badge ok">Подтверждено</span></td><td>Несколько независимых путеводителей.</td></tr>
+        <tr><td>Начало строительства 2010 г.</td><td><span class="badge warn">Один источник</span></td><td>Окончание в 2017 г. подтверждено лучше.</td></tr>
+        <tr><td>Золото 23 карата в куполе «Духа сотрудничества»</td><td><span class="badge warn">Не подтверждено</span></td><td>23 карата надёжно описаны для Большого зала и дверей; для купола зала саммитов есть только туристические блоги.</td></tr>
+        <tr><td>Часы работы и цены</td><td><span class="badge warn">Меняются</span></td><td>Официальный сайт предупреждает, что график меняется; расписание шоу обновляется ежемесячно.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Посещение</div>
+    <h2>Практическая информация</h2>
+    <div class="cols">
+      <div><h3>Билеты</h3><ul>
+        <li>Общий билет — около 65 AED у официального оператора; у реселлеров встречаются цены 39–65 AED.</li>
+        <li>Билет включает дворец, сады и вечернее шоу Palace in Motion. Шоу можно купить и отдельно.</li>
+        <li>При отмене шоу билет переносят, деньги не возвращают.</li>
+      </ul></div>
+      <div><h3>Время</h3><ul>
+        <li>Обычно с 10:00 до 17:00–19:00, шоу после заката (около 18:30–20:00 в зависимости от сезона).</li>
+        <li>Закрытия возможны из-за государственных мероприятий.</li>
+        <li>Перед поездкой сверьте расписание на qasralwatan.ae.</li>
+      </ul></div>
+      <div><h3>Правила</h3><ul>
+        <li>Скромная одежда: закрытые плечи и колени.</li>
+        <li>Вход через центр посетителей, далее шаттл до дворца.</li>
+        <li>На визит закладывайте 2–3 часа плюс время на шоу.</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="eyebrow">Источники</div>
+    <h2>Использованные материалы</h2>
+    <ul class="sources">
+      <li><a href="https://qasralwatan.ae/en/explore-the-palace/the-great-hall" target="_blank" rel="noopener">Qasr Al Watan — The Great Hall (официальный сайт)</a></li>
+      <li><a href="https://www.qasralwatan.ae/en/tickets/qasr-al-watan-ticket" target="_blank" rel="noopener">Qasr Al Watan — билеты</a></li>
+      <li><a href="https://www.qasralwatan.ae/en/tickets/palace-in-motion-ticket" target="_blank" rel="noopener">Qasr Al Watan — Palace in Motion</a></li>
+      <li><a href="https://www.aard.gov.ae/Media-Centre/News/10-03-2019-3" target="_blank" rel="noopener">Правительство Абу-Даби: открытие дворца, 10.03.2019</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Qasr_Al_Watan" target="_blank" rel="noopener">Wikipedia — Qasr Al Watan</a></li>
+      <li><a href="https://gulfnews.com/uae/the-impressive-qasr-al-watan-in-numbers-1.1557651867589" target="_blank" rel="noopener">Gulf News — Qasr Al Watan in numbers</a></li>
+      <li><a href="https://gulfnews.com/uae/visiting-qasr-al-watan-heres-the-best-things-to-see-1.1554197863082" target="_blank" rel="noopener">Gulf News — best things to see</a></li>
+      <li><a href="https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan" target="_blank" rel="noopener">Khaleej Times — ultimate guide</a></li>
+      <li><a href="https://thenationalnews.com/weekend/2022/08/05/inside-the-spirit-of-collaboration-room-the-seat-of-summits-in-abu-dhabi" target="_blank" rel="noopener">The National — Spirit of Collaboration</a></li>
+      <li><a href="https://www.thenationalnews.com/news/uae/2025/05/15/qasr-al-watan-inside-abu-dhabis-presidential-palace-hosting-donald-trump" target="_blank" rel="noopener">The National — визит 2025</a></li>
+      <li><a href="https://gulftoday.ae/Culture/2021/06/28/Some-interesting-facts-of-The-Great-Hall-in-Qasr-Al-Watan" target="_blank" rel="noopener">Gulf Today — The Great Hall</a></li>
+      <li><a href="https://www.prnewswire.com/il/news-releases/qasr-al-watan-the-uaes-newest-cultural-landmark-opens-to-visitors-300810061.html" target="_blank" rel="noopener">PR Newswire — открытие для посетителей</a></li>
+      <li><a href="https://gulfbusiness.com/en/2019/uae/pictures-inside-abu-dhabis-presidential-palace-now-open-public/" target="_blank" rel="noopener">Gulf Business — фото интерьеров</a></li>
+      <li><a href="https://visitabudhabi.ae/en/things-to-do/culture/landmarks-and-architecture/qasr-al-watan" target="_blank" rel="noopener">Visit Abu Dhabi</a></li>
+      <li><a href="https://www.etihad.com/en/abu-dhabi/attractions/qasr-al-watan" target="_blank" rel="noopener">Etihad — путеводитель</a></li>
+    </ul>
+  </section>
+  <footer>Данные проверены на ноябрь 2026 г. Макет создан для образовательных целей и не является архитектурным чертежом.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const ROOMS = [
+  {id:"great", name:"Большой зал", en:"The Great Hall", ar:"القاعة الكبرى", zone:"Центр · главный купол", ok:true,
+   text:"Сердце дворца и его главный церемониальный зал под центральным куполом. Отделка в белых и золотых тонах, сусальное золото 23 карата, мукарны и геометрические орнаменты. Через зал проходят все гости, его используют для официальных встреч на высшем уровне.",
+   facts:[["37 м","диаметр купола; по ряду источников он больше главного купола Большой мечети шейха Зайда"],["60 м","высота до вершины купола"],["23 карата","сусальное золото в отделке"]]},
+  {id:"spirit", name:"Дух сотрудничества", en:"Spirit of Collaboration", ar:"روح التعاون", zone:"Западное крыло · купол", ok:true,
+   text:"Зал заседаний Федерального высшего совета и кабинета министров ОАЭ, а также саммитов ССАГПЗ, Лиги арабских государств и Африканского союза. В центре — большой круглый стол под куполом с огромной люстрой. В 2022 году зал снова открыт для посетителей.",
+   facts:[["350 000","кристаллов в люстре"],["≈ 12 т","вес люстры; внутри неё есть лестница для обслуживания"],["Саммиты","ССАГПЗ, ЛАГ, Федеральный высший совет"]], warn:"Ряд источников помещает люстру в Большой зал; большинство — сюда."},
+  {id:"banquet", name:"Президентский банкет", en:"The Presidential Banquet", ar:"المأدبة الرئاسية", zone:"Западное крыло", ok:true,
+   text:"Зал для государственных ужинов в честь глав государств. Экспонируется сервировка, изготовленная специально для дворца.",
+   facts:[["149 000","предметов из серебра, хрусталя и фарфора"],["≈ 300","мест по описаниям прессы 2019 г."]]},
+  {id:"barza", name:"Аль-Барза", en:"Al Barza", ar:"البرزة", zone:"Западное крыло", ok:true,
+   text:"Меджлис, традиционное место собраний, где правитель выслушивает граждан и решения принимаются через консенсус. Посетителям показывают мультимедийную программу о меджлисе как основе эмиратского управления. По описаниям Khaleej Times — второй по величине зал после Большого.",
+   facts:[["до 300","гостей"],["2-й","по размеру зал дворца"]]},
+  {id:"knowledge", name:"Дом знаний", en:"House of Knowledge", ar:"بيت المعرفة", zone:"Восточное крыло", ok:true,
+   text:"Два зала с редкими рукописями, книгами и артефактами, показывающими вклад арабского мира в науку, искусство, гуманитарные знания и литературу.",
+   facts:[["2","экспозиционных зала"],["Бирмингемский Коран","факсимиле одного из древнейших фрагментов Корана"],["Атлас","рукопись по астрономии"]]},
+  {id:"gifts", name:"Президентские дары", en:"Presidential Gifts", ar:"الهدايا الرئاسية", zone:"Восточное крыло", ok:true,
+   text:"Коллекция дипломатических подарков, которые руководители ОАЭ получили во время государственных визитов.",
+   facts:[["Туркменистан","ковры"],["Казахстан","парадные меч и щит"],["Япония","доспехи самурая"]]},
+  {id:"library", name:"Библиотека Qasr Al Watan", en:"Qasr Al Watan Library", ar:"مكتبة قصر الوطن", zone:"Отдельный павильон", ok:true,
+   text:"Библиотека о культурной, социальной и политической истории ОАЭ и региона. Работает как читальный зал для посетителей и исследователей.",
+   facts:[["50 000+","книг и материалов"]]},
+  {id:"show", name:"Palace in Motion", en:"Palace in Motion", ar:"القصر في حركة", zone:"Главный фасад · вечер", ok:true,
+   text:"Световое и звуковое шоу, проецируемое на фасад дворца после заката. Три акта рассказывают о прошлом, настоящем и будущем ОАЭ. Включите режим «Ночь», чтобы увидеть проекцию на макете.",
+   facts:[["3","акта: прошлое, настоящее, будущее"],["С 2019","идёт ежедневно, время зависит от сезона"]], warn:"Время начала источники называют по-разному (18:30–20:00): смотрите официальный сайт."},
+  {id:"gardens", name:"Сады дворца", en:"Palace Gardens", ar:"حدائق القصر", zone:"Перед главным фасадом", ok:true,
+   text:"Регулярный парк с фонтанами и водными каналами на оси главного входа. Отсюда открывается классический вид на фасад и купол, здесь же собираются зрители вечернего шоу.",
+   facts:[["380 000 м²","весь комплекс Президентского дворца"]]},
+  {id:"visitor", name:"Центр посетителей", en:"Visitor Centre", ar:"مركز الزوار", zone:"Вход в комплекс", ok:true,
+   text:"Точка входа: кассы, досмотр, сувенирный магазин и кафе. Отсюда шаттл везёт гостей к дворцу.",
+   facts:[["Шаттл","до главного здания"]]}
+];
+
+const info = document.getElementById('info');
+const list = document.getElementById('roomlist');
+const cards = document.getElementById('roomcards');
+let current = null;
+
+function renderInfo(r){
+  if(!r){
+    info.innerHTML = `<div class="eyebrow">Выберите зал</div><h2>Обзор дворца</h2>
+      <p>Qasr Al Watan — действующий Президентский дворец ОАЭ, открытый для публики с 11 марта 2019 года. В ансамбле: Большой зал под 37-метровым куполом, западное крыло государственных церемоний и восточное крыло знаний и наследия.</p>
+      <ul class="facts"><li><b>380 000 м²</b><span>площадь комплекса</span></li><li><b>10</b><span>интерактивных зон на макете</span></li></ul>
+      <p class="note">Нажмите на элемент макета или на название зала ниже.</p>`;
+    return;
+  }
+  info.innerHTML = `<div class="eyebrow">${r.zone}</div><h2>${r.name}</h2><div class="ar" lang="ar">${r.ar}</div>
+    <div class="note">${r.en}</div><p>${r.text}</p>
+    <ul class="facts">${r.facts.map(f=>`<li><b>${f[0]}</b><span>${f[1]}</span></li>`).join('')}</ul>
+    ${r.warn?`<span class="badge warn">Расхождение в источниках</span><p class="note">${r.warn}</p>`:`<span class="badge ok">Сверено по источникам</span>`}`;
+  info.scrollTop = 0;
+}
+ROOMS.forEach(r=>{
+  const b=document.createElement('button'); b.textContent=r.name; b.dataset.id=r.id; b.id='rl-'+r.id;
+  b.onclick=()=>select(r.id,true); list.appendChild(b);
+  const c=document.createElement('article'); c.className='room';
+  c.innerHTML=`<div class="zone">${r.zone}</div><h3>${r.name}</h3><div class="note">${r.en} · <span lang="ar">${r.ar}</span></div><p>${r.text}</p>
+   <ul class="facts">${r.facts.map(f=>`<li><b>${f[0]}</b><span>${f[1]}</span></li>`).join('')}</ul>
+   <button class="chip" id="card-${r.id}">Показать на макете</button>`;
+  c.querySelector('button').onclick=()=>{select(r.id,true);document.getElementById('box').scrollIntoView({behavior:'smooth',block:'center'})};
+  cards.appendChild(c);
+});
+renderInfo(null);
+
+let select = (id)=>{ current=ROOMS.find(r=>r.id===id); renderInfo(current); };
+
+(function init3D(){
+  if(!window.THREE || !THREE.OrbitControls){ document.getElementById('loading').textContent='3D не загрузился: карточки залов доступны ниже.'; return; }
+  document.getElementById('loading').remove();
+  const box=document.getElementById('box'), canvas=document.getElementById('scene'), tip=document.getElementById('tip');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputEncoding=THREE.sRGBEncoding;
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(40,1,0.5,2000);
+  const HOME={pos:new THREE.Vector3(120,85,150),target:new THREE.Vector3(0,12,0)};
+  camera.position.copy(HOME.pos);
+  const controls=new THREE.OrbitControls(camera,canvas);
+  controls.target.copy(HOME.target); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.48;
+  controls.minDistance=30; controls.maxDistance=420; controls.autoRotate=true; controls.autoRotateSpeed=0.5;
+
+  const hemi=new THREE.HemisphereLight(0xdfeaff,0xc9b48a,0.75); scene.add(hemi);
+  const sun=new THREE.DirectionalLight(0xfff1d8,1.05); sun.position.set(90,140,70); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-160,right:160,top:160,bottom:-160,far:500}); scene.add(sun);
+
+  // Materials
+  const M={
+    stone:new THREE.MeshStandardMaterial({color:0xf2efe8,roughness:.75}),
+    stone2:new THREE.MeshStandardMaterial({color:0xe3ddd0,roughness:.8}),
+    dome:new THREE.MeshStandardMaterial({color:0xf7f4ee,roughness:.35,metalness:.05}),
+    gold:new THREE.MeshStandardMaterial({color:0xe0b552,roughness:.35,metalness:.45}),
+    glass:new THREE.MeshStandardMaterial({color:0x2b4f86,roughness:.2,metalness:.4}),
+    water:new THREE.MeshStandardMaterial({color:0x3f8fc4,roughness:.1,metalness:.3,transparent:true,opacity:.9}),
+    grass:new THREE.MeshStandardMaterial({color:0x7fa35a,roughness:1}),
+    sand:new THREE.MeshStandardMaterial({color:0xe6d6b4,roughness:1}),
+    palm:new THREE.MeshStandardMaterial({color:0x4f7a3a,roughness:.9}),
+    trunk:new THREE.MeshStandardMaterial({color:0x8a6a45,roughness:1}),
+    floor:new THREE.MeshStandardMaterial({color:0xcbb68a,roughness:.6})
+  };
+  const pickables=[]; const groups={}; const roofs=[];
+  function grp(id){ const g=new THREE.Group(); g.userData.id=id; scene.add(g); groups[id]=g; return g; }
+  function mesh(geo,mat,g,x,y,z,opts={}){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+    if(g){ g.add(m); if(g.userData.id){ m.userData.id=g.userData.id; pickables.push(m);} } else scene.add(m);
+    if(opts.roof) roofs.push(m); return m; }
+
+  // Ground
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(400,64),M.sand); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+  const sea=new THREE.Mesh(new THREE.RingGeometry(260,900,64),M.water); sea.rotation.x=-Math.PI/2; sea.position.y=0.05; scene.add(sea);
+
+  function domeGeo(r){ return new THREE.SphereGeometry(r,48,24,0,Math.PI*2,0,Math.PI/2); }
+  function finial(g,x,y,z,s=1){ mesh(new THREE.CylinderGeometry(.25*s,.4*s,3*s,8),M.gold,g,x,y+1.5*s,z); mesh(new THREE.SphereGeometry(.7*s,12,8),M.gold,g,x,y+3.2*s,z); }
+  function arches(g,x,z,w,h,y,count,axis='x',face=1){
+    for(let i=0;i<count;i++){ const t=(i+.5)/count-.5; const geo=new THREE.BoxGeometry(axis==='x'?w/count*.55:.4,h,axis==='x'?.4:w/count*.55);
+      const m=mesh(geo,M.glass,g,axis==='x'?x+t*w:x+face*0.01,y,axis==='x'?z+face*0.01:z+t*w); m.castShadow=false; }
+  }
+  function interiorFloor(g,x,z,w,d){ const f=mesh(new THREE.BoxGeometry(w-1,.3,d-1),M.floor,g,x,.6,z); f.visible=false; f.userData.interior=true; return f; }
+
+  // GREAT HALL (center)
+  { const g=grp('great');
+    mesh(new THREE.BoxGeometry(56,4,56),M.stone2,g,0,2,0);
+    mesh(new THREE.BoxGeometry(44,18,44),M.stone,g,0,13,0,{roof:false});
+    arches(g,0,22.2,40,9,12,7,'x',1);
+    mesh(new THREE.CylinderGeometry(19,19,8,48),M.stone,g,0,26,0,{roof:true});
+    for(let i=0;i<24;i++){ const a=i/24*Math.PI*2; const w=mesh(new THREE.BoxGeometry(1.2,4,.4),M.glass,g,Math.cos(a)*19.05,26,Math.sin(a)*19.05,{roof:true}); w.rotation.y=-a+Math.PI/2; }
+    const d=mesh(domeGeo(18.5),M.dome,g,0,30,0,{roof:true}); d.scale.y=1.25;
+    mesh(new THREE.TorusGeometry(18.6,.5,8,64),M.gold,g,0,30,0,{roof:true}).rotation.x=Math.PI/2;
+    finial(g,0,53,0,2);
+    [[-22,-22],[22,-22],[-22,22],[22,22]].forEach(([x,z])=>{ mesh(new THREE.CylinderGeometry(4,4,6,24),M.stone,g,x,25,z,{roof:true}); const s=mesh(domeGeo(4),M.dome,g,x,28,z,{roof:true}); finial(g,x,32,z,.7); roofs.push(s); });
+    // portico
+    mesh(new THREE.BoxGeometry(24,16,8),M.stone,g,0,12,28);
+    for(let i=0;i<6;i++) mesh(new THREE.CylinderGeometry(.9,.9,14,16),M.stone2,g,-10+i*4,11,32.6);
+    arches(g,0,32.1,20,8,11,3,'x',1);
+    interiorFloor(g,0,0,44,44);
+    // chandelier visible in section mode
+    const ch=mesh(new THREE.ConeGeometry(4,7,24,1,true),M.gold,g,0,22,0); ch.visible=false; ch.userData.interior=true;
+  }
+  // WEST WING
+  { const g=grp('spirit'); const x=-58,z=-8;
+    mesh(new THREE.BoxGeometry(30,16,30),M.stone,g,x,8+4,z); mesh(new THREE.BoxGeometry(34,4,34),M.stone2,g,x,2,z);
+    mesh(new THREE.CylinderGeometry(10,10,5,40),M.stone,g,x,22.5,z,{roof:true});
+    const d=mesh(domeGeo(9.6),M.dome,g,x,25,z,{roof:true}); d.scale.y=1.15; finial(g,x,36,z,1.2);
+    mesh(new THREE.TorusGeometry(9.7,.35,8,48),M.gold,g,x,25,z,{roof:true}).rotation.x=Math.PI/2;
+    arches(g,x,z+15.1,26,7,12,5,'x',1);
+    interiorFloor(g,x,z,30,30);
+    const t=mesh(new THREE.CylinderGeometry(7,7,1.2,40),M.trunk,g,x,2,z); t.visible=false; t.userData.interior=true;
+    const ch=mesh(new THREE.SphereGeometry(3.2,16,12),M.gold,g,x,12,z); ch.visible=false; ch.userData.interior=true;
+  }
+  { const g=grp('banquet'); const x=-58,z=24;
+    mesh(new THREE.BoxGeometry(30,4,26),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,13,24),M.stone,g,x,10.5,z);
+    mesh(new THREE.BoxGeometry(29,1.2,25),M.gold,g,x,17.6,z,{roof:true});
+    arches(g,x,z+12.1,24,7,10,6,'x',1); interiorFloor(g,x,z,28,24);
+    for(let i=0;i<3;i++){ const t=mesh(new THREE.BoxGeometry(20,1,2),M.trunk,g,x,1.6,z-7+i*7); t.visible=false; t.userData.interior=true; }
+  }
+  { const g=grp('barza'); const x=-58,z=-38;
+    mesh(new THREE.BoxGeometry(30,4,24),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,12,22),M.stone,g,x,10,z);
+    mesh(new THREE.CylinderGeometry(6,6,3,32),M.stone,g,x,17.5,z,{roof:true}); const d=mesh(domeGeo(5.8),M.dome,g,x,19,z,{roof:true}); finial(g,x,24.8,z,.8);
+    arches(g,x+14.1,z,18,6,9,4,'z',1); interiorFloor(g,x,z,28,22);
+  }
+  // connectors
+  { const lnk=new THREE.Group(); scene.add(lnk);
+    [[ -35,0],[35,0]].forEach(([x])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(14,10,16),M.stone); m.position.set(x,7,0); m.castShadow=m.receiveShadow=true; lnk.add(m); });
+    [[-58,-23],[-58,8]].forEach(([x,z])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(18,8,6),M.stone2); m.position.set(x,6,z); m.castShadow=true; lnk.add(m); });
+    [[58,-23],[58,8]].forEach(([x,z])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(18,8,6),M.stone2); m.position.set(x,6,z); m.castShadow=true; lnk.add(m); });
+  }
+  // EAST WING
+  { const g=grp('knowledge'); const x=58,z=-12;
+    mesh(new THREE.BoxGeometry(32,4,30),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(30,14,28),M.stone,g,x,11,z);
+    [[-7],[7]].forEach(([dx])=>{ mesh(new THREE.CylinderGeometry(5,5,3,28),M.stone,g,x+dx,19.5,z,{roof:true}); mesh(domeGeo(4.8),M.dome,g,x+dx,21,z,{roof:true}); finial(g,x+dx,25.8,z,.7); });
+    arches(g,x,z+14.1,26,7,10,5,'x',1); interiorFloor(g,x,z,30,28);
+    for(let i=0;i<4;i++){ const s=mesh(new THREE.BoxGeometry(2,6,20),M.trunk,g,x-9+i*6,4,z); s.visible=false; s.userData.interior=true; }
+  }
+  { const g=grp('gifts'); const x=58,z=22;
+    mesh(new THREE.BoxGeometry(30,4,26),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,12,24),M.stone,g,x,10,z);
+    mesh(new THREE.BoxGeometry(29,1.2,25),M.gold,g,x,16.6,z,{roof:true});
+    arches(g,x,z+12.1,24,6,9,5,'x',1); interiorFloor(g,x,z,28,24);
+    for(let i=0;i<6;i++){ const c=mesh(new THREE.BoxGeometry(2.5,3,2.5),M.glass,g,x-10+i*4,2.5,z); c.visible=false; c.userData.interior=true; }
+  }
+  { const g=grp('library'); const x=105,z=60;
+    mesh(new THREE.BoxGeometry(26,3,20),M.stone2,g,x,1.5,z); mesh(new THREE.BoxGeometry(24,10,18),M.stone,g,x,8,z);
+    mesh(new THREE.BoxGeometry(25,1,19),M.gold,g,x,13.5,z,{roof:true}); arches(g,x,z+9.1,20,6,7,5,'x',1); interiorFloor(g,x,z,24,18);
+  }
+  { const g=grp('visitor'); const x=-100,z=110;
+    mesh(new THREE.BoxGeometry(30,3,16),M.stone2,g,x,1.5,z); mesh(new THREE.BoxGeometry(28,8,14),M.stone,g,x,7,z);
+    mesh(new THREE.CylinderGeometry(5,5,2,24),M.stone,g,x,12,z,{roof:true}); mesh(domeGeo(4.8),M.dome,g,x,13,z,{roof:true});
+    arches(g,x,z+7.1,24,5,6,6,'x',1);
+  }
+  // GARDENS + fountains
+  let fountainJets=[];
+  { const g=grp('gardens');
+    mesh(new THREE.BoxGeometry(150,.4,90),M.grass,g,0,.2,90);
+    mesh(new THREE.BoxGeometry(14,.6,90),M.stone2,g,0,.4,90);
+    mesh(new THREE.BoxGeometry(8,.7,84),M.water,g,0,.5,90);
+    [[-40,70],[40,70],[-40,112],[40,112]].forEach(([x,z])=>{ mesh(new THREE.CylinderGeometry(7,7,1,32),M.stone2,g,x,.6,z); mesh(new THREE.CylinderGeometry(6,6,1.1,32),M.water,g,x,.7,z);
+      const j=mesh(new THREE.CylinderGeometry(.2,.5,4,8),M.water,g,x,3,z); fountainJets.push(j); });
+    for(let i=0;i<14;i++){ [-1,1].forEach(s=>{ const x=s*(16+((i%2)*6)), z=50+i*6.5;
+      mesh(new THREE.CylinderGeometry(.35,.5,7,6),M.trunk,g,x,3.5,z);
+      for(let k=0;k<6;k++){ const leaf=mesh(new THREE.ConeGeometry(.8,5,4),M.palm,g,x,7.3,z); leaf.rotation.z=Math.PI/2.6; leaf.rotation.y=k/6*Math.PI*2; leaf.position.x+=Math.cos(k/6*Math.PI*2)*1.6; leaf.position.z-=Math.sin(k/6*Math.PI*2)*1.6; leaf.castShadow=false; }
+    }); }
+  }
+  // PALACE IN MOTION projection surface (front façade)
+  const showTex=document.createElement('canvas'); showTex.width=512; showTex.height=256; const sctx=showTex.getContext('2d');
+  const tex=new THREE.CanvasTexture(showTex);
+  const showMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
+  { const g=grp('show');
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(26,17),showMat); plane.position.set(0,11,33.8); g.add(plane); plane.userData.id='show'; pickables.push(plane);
+    const proj=mesh(new THREE.BoxGeometry(3,2,3),M.glass,g,0,1,150); }
+  const domeGlow=new THREE.PointLight(0xffc36b,0,160); domeGlow.position.set(0,40,40); scene.add(domeGlow);
+
+  // ---- interaction
+  const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hoverId=null;
+  const emissiveFor=(id,on)=>{ const g=groups[id]; if(!g) return; g.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive){ if(!o.userData.mat){ o.userData.mat=o.material; } o.material = on? o.userData.hl || (o.userData.hl=Object.assign(o.userData.mat.clone(),{})) : o.userData.mat; if(on){ o.material.emissive=new THREE.Color(id===current?.id?0x6b4a00:0x2a3f66); o.material.emissiveIntensity=.55; } } }); };
+  function setHighlight(){ Object.keys(groups).forEach(id=>emissiveFor(id, id===hoverId || id===current?.id)); }
+  function pick(ev){ const r=canvas.getBoundingClientRect(); mouse.x=((ev.clientX-r.left)/r.width)*2-1; mouse.y=-((ev.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(mouse,camera); const hit=ray.intersectObjects(pickables.filter(p=>p.visible && (p.userData.id!=='show' || showMat.opacity>0.3)),false)[0]; return hit?hit.object.userData.id:null; }
+  canvas.addEventListener('pointermove',ev=>{ const id=pick(ev); if(id!==hoverId){ hoverId=id; setHighlight(); }
+    canvas.classList.toggle('hovering',!!id); if(id){ const r=canvas.getBoundingClientRect(); tip.hidden=false; tip.textContent=ROOMS.find(x=>x.id===id).name; tip.style.left=(ev.clientX-r.left)+'px'; tip.style.top=(ev.clientY-r.top)+'px'; } else tip.hidden=true; });
+  canvas.addEventListener('pointerleave',()=>{ hoverId=null; tip.hidden=true; setHighlight(); });
+  let down=null; canvas.addEventListener('pointerdown',e=>down={x:e.clientX,y:e.clientY});
+  canvas.addEventListener('pointerup',e=>{ if(!down) return; if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){ const id=pick(e); if(id) select(id,true); } down=null; });
+
+  // camera fly
+  let fly=null;
+  function centerOf(id){ const b=new THREE.Box3().setFromObject(groups[id]); const c=b.getCenter(new THREE.Vector3()); const s=b.getSize(new THREE.Vector3()).length(); return {c,s}; }
+  function flyTo(pos,target){ fly={p0:camera.position.clone(),t0:controls.target.clone(),p1:pos,t1:target,t:0}; }
+  select=(id,move)=>{ current=ROOMS.find(r=>r.id===id); renderInfo(current); setHighlight();
+    document.querySelectorAll('.roomlist button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+    if(move){ if(id==='show'){ setNight(true); flyTo(new THREE.Vector3(0,28,170),new THREE.Vector3(0,17,30)); return; }
+      const {c,s}=centerOf(id); const dir=new THREE.Vector3(c.x>5?.6:c.x<-5?-.6:.3,.75,1).normalize(); flyTo(c.clone().add(dir.multiplyScalar(Math.max(s*1.6,70))),c); }
+    btnSpin.setAttribute('aria-pressed','false'); controls.autoRotate=false; };
+
+  // HUD
+  const btnNight=document.getElementById('btnNight'), btnRoof=document.getElementById('btnRoof'), btnSpin=document.getElementById('btnSpin');
+  let night=false;
+  function setNight(on){ night=on; btnNight.setAttribute('aria-pressed',on); hemi.intensity=on?.18:.75; sun.intensity=on?.08:1.05; domeGlow.intensity=on?1.4:0;
+    hemi.color.set(on?0x5068a8:0xdfeaff); box.classList.toggle('night',on); }
+  btnNight.onclick=()=>setNight(!night);
+  btnRoof.onclick=()=>{ const on=btnRoof.getAttribute('aria-pressed')!=='true'; btnRoof.setAttribute('aria-pressed',on);
+    roofs.forEach(m=>m.visible=!on); scene.traverse(o=>{ if(o.userData.interior) o.visible=on; }); };
+  btnSpin.onclick=()=>{ const on=btnSpin.getAttribute('aria-pressed')!=='true'; btnSpin.setAttribute('aria-pressed',on); controls.autoRotate=on; };
+  document.getElementById('btnReset').onclick=()=>{ current=null; renderInfo(null); setHighlight(); document.querySelectorAll('.roomlist button').forEach(b=>b.classList.remove('active')); flyTo(HOME.pos.clone(),HOME.target.clone()); };
+  controls.addEventListener('start',()=>{ fly=null; });
+
+  function drawShow(t){ const w=showTex.width,h=showTex.height; sctx.clearRect(0,0,w,h);
+    const act=Math.floor(t/8)%3; const pal=[["#ffb347","#c2410c"],["#38bdf8","#6366f1"],["#a7f3d0","#f472b6"]][act];
+    const gr=sctx.createLinearGradient(0,0,w,h); gr.addColorStop(0,pal[0]); gr.addColorStop(1,pal[1]); sctx.fillStyle=gr; sctx.globalAlpha=.55; sctx.fillRect(0,0,w,h); sctx.globalAlpha=1;
+    for(let i=0;i<14;i++){ const x=(i/14*w + t*30*(i%2?1:-1))%w; sctx.fillStyle='rgba(255,255,255,.35)'; sctx.beginPath(); sctx.arc((x+w)%w,h/2+Math.sin(t*1.3+i)*h*.32,6+Math.sin(t+i)*4,0,7); sctx.fill(); }
+    sctx.strokeStyle='rgba(255,240,200,.6)'; sctx.lineWidth=2; for(let k=0;k<8;k++){ const cx=w/2,cy=h/2; sctx.beginPath(); const r=30+k*12+Math.sin(t*2)*4; for(let a=0;a<=8;a++){ const ang=a/8*Math.PI*2+t*.3; const px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r*.6; a?sctx.lineTo(px,py):sctx.moveTo(px,py);} sctx.stroke(); }
+    sctx.fillStyle='#fff'; sctx.font='600 22px Manrope, sans-serif'; sctx.textAlign='center'; sctx.fillText(['Акт I · Прошлое','Акт II · Настоящее','Акт III · Будущее'][act],w/2,h-18); tex.needsUpdate=true; }
+
+  function resize(){ const w=box.clientWidth,h=box.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(box); resize();
+  const clock=new THREE.Clock(); const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; if(reduce){ controls.autoRotate=false; btnSpin.setAttribute('aria-pressed','false'); }
+  (function loop(){ const t=clock.getElapsedTime();
+    if(fly){ fly.t=Math.min(1,fly.t+0.025); const e=1-Math.pow(1-fly.t,3); camera.position.lerpVectors(fly.p0,fly.p1,e); controls.target.lerpVectors(fly.t0,fly.t1,e); if(fly.t>=1) fly=null; }
+    showMat.opacity += ((night?0.95:0)-showMat.opacity)*0.06; if(showMat.opacity>0.02) drawShow(t);
+    fountainJets.forEach((j,i)=>{ j.scale.y=1+Math.sin(t*3+i)*.25; });
+    controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); })();
+})();
+</script>
