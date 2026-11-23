@@ -1,504 +1,785 @@
 <title>Qasr Al Watan 3D</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Forum&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Forum&family=Manrope:wght@400;500;600;700&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: full-bleed 3D stage with a docked info panel, then an editorial dossier below. */
+/* Layout: full-viewport WebGL stage; glass HUD overlays (brand top-left, tools top-right, hall rail bottom), hall drawer slides in from the right (bottom sheet on phones). */
 :root{
-  --bg:#eef0f3; --surface:#ffffff; --fg:#14213a; --muted:#5a6478; --line:#d6dbe4;
-  --lapis:#1f3f78; --gold:#a9822a; --gold-soft:#f3e7c8; --warn:#9a5b00; --warn-bg:#fff1d6;
-  --stage-top:#9fc3e6; --stage-bot:#eef0f3;
-  --f-display:"Forum","Times New Roman",serif;
-  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --ink:#13213d; --ink-2:#4b5875; --paper:#f7f5f0; --glass:rgba(250,248,243,.86); --line:rgba(19,33,61,.14);
+  --gold:#a37a1e; --gold-2:#c9a24a; --lapis:#1d3f7a; --warn:#94560a; --warn-bg:#fbefd6; --ok-bg:#f1e8cf;
+  --stage:#c9d9ea;
+  --f-display:"Forum","Times New Roman",serif; --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-ar:"Amiri","Times New Roman",serif; --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0b1120; --surface:#131b2e; --fg:#e6e9f0; --muted:#9aa4b8; --line:#26304a;
-  --lapis:#8fb0ef; --gold:#d8b25a; --gold-soft:#2b2412; --warn:#f0b45a; --warn-bg:#2d2212;
-  --stage-top:#0d1830; --stage-bot:#0b1120; color-scheme:dark}}
+  --ink:#ece8de; --ink-2:#a9b0c2; --paper:#0e1424; --glass:rgba(14,20,36,.84); --line:rgba(236,232,222,.14);
+  --gold:#d8b25a; --gold-2:#e8c877; --lapis:#9db8ee; --warn:#f0b45a; --warn-bg:#2d2212; --ok-bg:#2a2414; --stage:#0d1630; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0b1120; --surface:#131b2e; --fg:#e6e9f0; --muted:#9aa4b8; --line:#26304a;
-  --lapis:#8fb0ef; --gold:#d8b25a; --gold-soft:#2b2412; --warn:#f0b45a; --warn-bg:#2d2212;
-  --stage-top:#0d1830; --stage-bot:#0b1120; color-scheme:dark}
+  --ink:#ece8de; --ink-2:#a9b0c2; --paper:#0e1424; --glass:rgba(14,20,36,.84); --line:rgba(236,232,222,.14);
+  --gold:#d8b25a; --gold-2:#e8c877; --lapis:#9db8ee; --warn:#f0b45a; --warn-bg:#2d2212; --ok-bg:#2a2414; --stage:#0d1630; color-scheme:dark}
+html,body{height:100%;overflow:hidden}
+[hidden]{display:none!important}
+body{background:var(--stage);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
-.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0}
-.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
-header.top{padding-block:28px 18px;display:flex;flex-wrap:wrap;gap:12px 32px;align-items:end;justify-content:space-between}
-header.top h1{font-size:clamp(34px,5vw,58px);line-height:1;color:var(--lapis)}
-header.top h1 span{font-size:.5em;color:var(--muted);display:block;margin-top:8px}
-header.top p{max-width:52ch;margin:0;color:var(--muted)}
-
-/* Stage */
-.stage{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
-.canvas-box{position:relative;min-height:560px;background:linear-gradient(var(--stage-top),var(--stage-bot));transition:background .6s}
-.canvas-box.night{background:linear-gradient(#050a1a,#1b2547)}
-#scene{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
-#scene.hovering{cursor:pointer}
-.hud{position:absolute;left:12px;top:12px;display:flex;flex-wrap:wrap;gap:6px;z-index:2}
-.hud button,.chip{font:500 12px var(--f-body);border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 88%,transparent);color:var(--fg);padding:6px 11px;border-radius:999px;cursor:pointer;backdrop-filter:blur(6px)}
-.hud button[aria-pressed="true"]{background:var(--lapis);color:var(--surface);border-color:var(--lapis)}
-.hud button:focus-visible,.chip:focus-visible,.roomlist button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.tip{position:absolute;pointer-events:none;z-index:3;font:600 12px var(--f-body);background:var(--fg);color:var(--bg);padding:4px 9px;border-radius:6px;transform:translate(-50%,-140%);white-space:nowrap}
-.hint{position:absolute;left:12px;bottom:10px;font:11px var(--f-mono);color:var(--muted);z-index:2}
-.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font:13px var(--f-mono)}
-
-.panel{border-left:1px solid var(--line);display:flex;flex-direction:column;max-height:640px;min-width:0}
-.panel .info{padding:20px;overflow-y:auto;flex:1}
-.panel h2{font-size:30px;line-height:1.1;color:var(--lapis);margin-top:6px}
-.panel .ar{font-family:var(--f-display);font-size:20px;color:var(--gold);direction:rtl;margin-top:4px}
-.panel p{margin:12px 0 0}
-.facts{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
-.facts li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:baseline;border-top:1px dashed var(--line);padding-top:8px}
-.facts b{font-family:var(--f-mono);font-weight:500;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
-.badge{display:inline-block;font:600 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:4px;margin-top:12px}
-.badge.ok{background:var(--gold-soft);color:var(--gold)}
-.badge.warn{background:var(--warn-bg);color:var(--warn)}
-.note{font-size:13px;color:var(--muted)}
-.roomlist{border-top:1px solid var(--line);padding:10px;display:flex;flex-wrap:wrap;gap:6px;background:var(--bg)}
-.roomlist button{font:500 12px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 10px;border-radius:6px;cursor:pointer}
-.roomlist button.active{border-color:var(--gold);color:var(--gold)}
-
-/* Dossier */
-section.block{padding-block:56px 8px}
-section.block>h2{font-size:clamp(28px,3.4vw,40px);color:var(--lapis);margin-top:6px}
-.lead{max-width:68ch;color:var(--muted);margin-top:10px}
-.numbers{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:24px}
-.numbers div{background:var(--surface);padding:18px}
-.numbers strong{display:block;font-family:var(--f-display);font-size:38px;line-height:1;color:var(--fg);font-variant-numeric:tabular-nums}
-.numbers span{font-size:13px;color:var(--muted)}
-.timeline{list-style:none;padding:0;margin:24px 0 0;display:grid;gap:0}
-.timeline li{display:grid;grid-template-columns:120px 1fr;gap:20px;padding:14px 0;border-top:1px solid var(--line)}
-.timeline time{font:500 14px var(--f-mono);color:var(--gold)}
-.rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:24px}
-.room{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:6px;min-width:0}
-.room h3{font-size:24px;color:var(--lapis)}
-.room .zone{font:11px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
-.room p{margin:0;font-size:14px}
-.room .chip{align-self:flex-start;margin-top:auto;background:var(--bg)}
-.table-wrap{overflow-x:auto;margin-top:24px;border:1px solid var(--line);border-radius:12px}
-table{border-collapse:collapse;width:100%;min-width:640px;background:var(--surface);font-size:14px}
-th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-top:20px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#stage.hot{cursor:pointer}
+.glass{background:var(--glass);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid var(--line);box-shadow:0 10px 30px rgba(10,20,40,.18)}
+.brand{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 14px);left:max(16px,env(safe-area-inset-left,0px));padding:12px 18px 12px 16px;border-radius:14px;max-width:min(420px,calc(100vw - 32px))}
+.brand .eb{font:500 10.5px var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.brand h1{margin:2px 0 0;font:400 34px/1 var(--f-display);color:var(--ink);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.brand h1 span{font:400 24px/1 var(--f-ar);color:var(--gold)}
+.brand p{margin:6px 0 0;font-size:12.5px;color:var(--ink-2)}
+.tools{position:fixed;z-index:5;top:calc(env(safe-area-inset-top,0px) + 14px);right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:calc(100vw - 32px)}
+.tools button,.seg button{border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:8px 13px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--ink)}
+.tools button[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.seg{display:flex;gap:0;border-radius:999px}
+.seg button{border-radius:0}
+.seg button:first-child{border-radius:999px 0 0 999px}.seg button:last-child{border-radius:0 999px 999px 0}
+.rail{position:fixed;z-index:5;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;justify-content:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+.rail nav{pointer-events:auto;display:flex;gap:6px;overflow-x:auto;padding:8px;border-radius:16px;max-width:100%;scrollbar-width:none}
+.rail nav::-webkit-scrollbar{display:none}
+.rail button{flex:none;border:1px solid transparent;background:transparent;padding:7px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;gap:8px;align-items:center}
+.rail button i{font:500 10px var(--f-mono);color:var(--gold);font-style:normal}
+.rail button:hover{border-color:var(--line)}
+.rail button.on{background:var(--ink);color:var(--paper)}
+.rail button.on i{color:var(--gold-2)}
+.pins{position:fixed;inset:0;pointer-events:none;z-index:3}
+.pin{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;border:0;background:none;padding:0 0 10px;display:flex;flex-direction:column;align-items:center}
+.pin b{font:600 11.5px var(--f-body);background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--ink);padding:4px 9px 4px 5px;border-radius:999px;white-space:nowrap;display:flex;gap:6px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.18);transition:transform .15s}
+.pin b em{font:600 10px var(--f-mono);font-style:normal;background:var(--gold);color:#fff;border-radius:999px;width:18px;height:18px;display:grid;place-items:center}
+.pin::after{content:"";width:1px;height:10px;background:var(--gold);position:absolute;bottom:0}
+.pin:hover b,.pin.on b{transform:scale(1.07);background:var(--ink);color:var(--paper)}
+.pin.hide{display:none}
+.drawer{position:fixed;z-index:6;top:calc(env(safe-area-inset-top,0px) + 12px);right:max(12px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:min(440px,calc(100vw - 24px));border-radius:18px;display:flex;flex-direction:column;overflow:hidden;transform:translateX(calc(100% + 30px));transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.drawer.open{transform:none}
+.drawer .scroll{overflow-y:auto;flex:1;overscroll-behavior:contain}
+.ph{position:relative;background:#1b2236;aspect-ratio:3/2;overflow:hidden;max-width:100%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .cap{position:absolute;left:0;right:0;bottom:0;padding:22px 12px 8px;font-size:11px;color:#f2efe8;background:linear-gradient(transparent,rgba(0,0,0,.62))}
+.ph .cap a{color:#f6dfa4}
+.ph .nav{position:absolute;top:50%;transform:translateY(-50%);border:0;background:rgba(0,0,0,.45);color:#fff;width:34px;height:34px;border-radius:999px;cursor:pointer;font-size:16px}
+.ph .prev{left:8px}.ph .next{right:8px}
+.ph .count{position:absolute;top:10px;left:10px;font:500 10.5px var(--f-mono);background:rgba(0,0,0,.5);color:#fff;padding:3px 7px;border-radius:6px}
+.ph.empty{display:grid;place-items:center;text-align:center;padding:24px;color:#d9dce6;font-size:13px;background:linear-gradient(135deg,#1f2b4a,#2b2340)}
+.ph.empty strong{display:block;font:400 22px var(--f-display);color:#f3d98f;margin-bottom:6px}
+.ph.empty a{color:#f6dfa4}
+.close{position:absolute;top:10px;right:10px;z-index:2;border:0;width:34px;height:34px;border-radius:999px;background:rgba(0,0,0,.5);color:#fff;cursor:pointer;font-size:18px;line-height:1}
+.body{padding:18px 20px 22px}
+.zone{font:500 10.5px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.body h2{margin:6px 0 0;font:400 34px/1.05 var(--f-display);color:var(--ink);text-wrap:balance}
+.names{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-top:4px;color:var(--ink-2);font-size:13px}
+.names .ar{font:400 22px var(--f-ar);color:var(--gold);direction:rtl}
+.body p{margin:12px 0 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.acts button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+.acts button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:16px}
+.facts div{background:var(--glass);padding:11px 12px;min-width:0}
+.facts strong{display:block;font:400 25px/1.05 var(--f-display);color:var(--ink);font-variant-numeric:tabular-nums}
+.facts span{font-size:12px;color:var(--ink-2)}
+.h3{font:500 10.5px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:18px 0 6px}
+.wow{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wow li{padding-left:18px;position:relative;font-size:14px}
+.wow li::before{content:"";position:absolute;left:2px;top:.55em;width:7px;height:7px;transform:rotate(45deg);background:var(--gold-2)}
+.badge{display:inline-block;font:600 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:5px;margin-top:14px}
+.badge.ok{background:var(--ok-bg);color:var(--gold)}.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.note{font-size:12.5px;color:var(--ink-2)}
+.src{font-size:12px;color:var(--ink-2);margin-top:12px}
+.src a{color:var(--lapis)}
+.loader{position:fixed;inset:0;display:grid;place-items:center;z-index:9;background:var(--stage);transition:opacity .6s}
+.loader div{text-align:center}
+.loader strong{display:block;font:400 30px var(--f-display);color:var(--ink)}
+.loader span{font:12px var(--f-mono);color:var(--ink-2)}
+.loader.gone{opacity:0;pointer-events:none}
+.inside-bar{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 14px);padding:8px 8px 8px 16px;border-radius:999px;display:flex;gap:12px;align-items:center;font-size:13px;font-weight:600}
+.inside-bar button{border:0;background:var(--ink);color:var(--paper);border-radius:999px;padding:7px 13px;cursor:pointer;font-weight:600;font-size:12.5px}
+/* dossier */
+.dossier{position:fixed;inset:0;z-index:8;background:var(--paper);overflow-y:auto;display:none}
+.dossier.open{display:block}
+.dwrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 70px}
+.dhead{display:flex;justify-content:space-between;gap:16px;align-items:start;position:sticky;top:0;background:var(--paper);padding-block:12px;z-index:2;border-bottom:1px solid var(--line)}
+.dhead h2{margin:0;font:400 40px/1 var(--f-display);color:var(--ink)}
+.dhead button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 14px;cursor:pointer;font-weight:600}
+.dsec{margin-top:40px}
+.dsec h3{font:400 28px var(--f-display);margin:4px 0 0;color:var(--ink)}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:18px}
+.nums div{background:var(--paper);padding:16px}
+.nums strong{display:block;font:400 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.nums span{font-size:13px;color:var(--ink-2)}
+.tl{list-style:none;padding:0;margin:16px 0 0}
+.tl li{display:grid;grid-template-columns:120px 1fr;gap:18px;padding:12px 0;border-top:1px solid var(--line)}
+.tl time{font:500 13px var(--f-mono);color:var(--gold)}
+.tw{overflow-x:auto;margin-top:16px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;margin-top:14px}
 .cols>div{min-width:0}
-.cols h3{font-size:22px;color:var(--lapis);margin-bottom:6px}
-.cols ul{padding-left:18px;margin:0}
-.sources{columns:2 320px;gap:32px;font-size:13px;margin-top:18px;padding-left:18px}
-.sources li{break-inside:avoid;margin-bottom:6px}
-a{color:var(--lapis)}
-footer{padding-block:40px 60px;color:var(--muted);font-size:13px}
-
-@media (max-width:900px){
-  .stage{grid-template-columns:1fr}
-  .panel{border-left:0;border-top:1px solid var(--line);max-height:none}
-  .canvas-box{min-height:420px}
-  .timeline li{grid-template-columns:1fr;gap:4px}
+.cols h4{font:400 21px var(--f-display);margin:0 0 6px}
+.cols ul{margin:0;padding-left:18px}
+.srcs{columns:2 300px;gap:30px;font-size:13px;padding-left:18px}
+.srcs li{break-inside:avoid;margin-bottom:6px}
+.srcs a{color:var(--lapis)}
+@media (max-width:760px){
+  .brand{padding:9px 12px}
+  .brand h1{font-size:26px}.brand h1 span{font-size:19px}.brand p{display:none}
+  .tools{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);right:auto;left:max(16px,env(safe-area-inset-left,0px));justify-content:flex-start}
+  .tools button,.seg button{padding:7px 10px;font-size:12px}
+  .drawer{top:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));width:auto;height:72vh;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);transform:translateY(calc(100% + 30px))}
+  .pin b{font-size:10.5px}
+  .tl li{grid-template-columns:1fr;gap:2px}
 }
-@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}}
 </style>
 
-<div class="wrap">
-  <header class="top">
-    <div>
-      <div class="eyebrow">Абу-Даби · Рас-эль-Ахдар · Президентский дворец ОАЭ</div>
-      <h1>Qasr Al Watan<span>قصر الوطن · «Дворец нации»</span></h1>
-    </div>
-    <p>Интерактивный макет и досье. Вращайте модель, нажимайте на купола, крылья и павильоны, чтобы открыть карточку зала. Факты сверены по нескольким источникам; спорные данные помечены.</p>
-  </header>
+<canvas id="stage" aria-label="3D-модель дворца Qasr Al Watan"></canvas>
+<div class="pins" id="pins"></div>
 
-  <div class="stage">
-    <div class="canvas-box" id="box">
-      <div class="loading" id="loading">Загрузка 3D-сцены…</div>
-      <canvas id="scene" aria-label="3D-макет дворца Qasr Al Watan"></canvas>
-      <div class="hud">
-        <button id="btnNight" aria-pressed="false">Ночь · Palace in Motion</button>
-        <button id="btnRoof" aria-pressed="false">Разрез (снять кровлю)</button>
-        <button id="btnSpin" aria-pressed="true">Автовращение</button>
-        <button id="btnReset">Общий вид</button>
-      </div>
-      <div class="tip" id="tip" hidden></div>
-      <div class="hint">ЛКМ — вращать · колесо — масштаб · ПКМ — сдвиг · клик — зал</div>
-    </div>
-    <aside class="panel" aria-live="polite">
-      <div class="info" id="info"></div>
-      <nav class="roomlist" id="roomlist" aria-label="Залы"></nav>
-    </aside>
+<header class="brand glass">
+  <div class="eb">Абу-Даби · 24°27′44″ с.ш. 54°18′20″ в.д.</div>
+  <h1>Qasr Al Watan <span lang="ar">قصر الوطن</span></h1>
+  <p>Президентский дворец ОАЭ. Нажмите на зал или метку, чтобы открыть фото и факты.</p>
+</header>
+
+<div class="tools">
+  <div class="seg" role="group" aria-label="Время суток">
+    <button id="tDay" aria-pressed="true">День</button><button id="tGold" aria-pressed="false">Закат</button><button id="tNight" aria-pressed="false">Ночь</button>
   </div>
-  <p class="note" style="margin-top:10px">Макет схематичный: точные планы действующей резиденции главы государства не публикуются. Расположение залов по крыльям дано по описаниям официальных путеводителей и прессы; пропорции и купола стилизованы.</p>
-
-  <section class="block">
-    <div class="eyebrow">Ключевые цифры</div>
-    <h2>Дворец в числах</h2>
-    <div class="numbers">
-      <div><strong>380 000 м²</strong><span>площадь комплекса Президентского дворца (≈ 38 га)</span></div>
-      <div><strong>37 м</strong><span>диаметр центрального купола Большого зала</span></div>
-      <div><strong>60 м</strong><span>высота подкупольного пространства Большого зала</span></div>
-      <div><strong>350 000</strong><span>кристаллов в люстре зала «Дух сотрудничества», вес ≈ 12 т</span></div>
-      <div><strong>149 000</strong><span>предметов серебра, хрусталя и фарфора Президентского банкета</span></div>
-      <div><strong>50 000+</strong><span>книг и материалов в библиотеке Qasr Al Watan</span></div>
-    </div>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">История</div>
-    <h2>Хронология</h2>
-    <ol class="timeline">
-      <li><time>2010–2017</time><div>Строительство дворца в составе комплекса Президентского дворца в районе Рас-эль-Ахдар на западной оконечности острова Абу-Даби, рядом с Emirates Palace. Срок 2010 — по данным части источников; завершение в 2017 г. подтверждают несколько изданий.</div></li>
-      <li><time>10 мар 2019</time><div>Шейх Мохаммед бин Рашид Аль Мактум и шейх Мохамед бин Заид Аль Нахайян торжественно открывают Qasr Al Watan (официальный пресс-релиз Абу-Даби).</div></li>
-      <li><time>11 мар 2019</time><div>Дворец впервые открывает двери для публики как культурная достопримечательность, оставаясь рабочей резиденцией: здесь проходят государственные визиты, саммиты и заседания.</div></li>
-      <li><time>2019</time><div>Запуск вечернего светового шоу Palace in Motion на фасаде дворца.</div></li>
-      <li><time>авг 2022</time><div>После перерыва посетителям снова открыт зал «Дух сотрудничества» (The National).</div></li>
-      <li><time>май 2025</time><div>Дворец принимает государственный визит президента США; Qasr Al Watan остаётся главной площадкой для приёма глав государств.</div></li>
-    </ol>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">Залы и пространства</div>
-    <h2>Все залы дворца</h2>
-    <p class="lead">Нажмите «Показать на макете», чтобы камера перелетела к залу.</p>
-    <div class="rooms" id="roomcards"></div>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">Архитектурный анализ</div>
-    <h2>Как устроен дворец</h2>
-    <div class="cols">
-      <div><h3>Композиция</h3><p>Симметричный ансамбль на оси «вход — Большой зал». Центральный купол доминирует над двумя крыльями. Западное крыло отдано государственным функциям: саммиты, банкеты, меджлис. Восточное — знаниям и наследию: Дом знаний и Президентские дары. Перед фасадом — регулярные сады с фонтанами, по краю — отдельные павильоны библиотеки и центра посетителей.</p></div>
-      <div><h3>Материалы и декор</h3><ul>
-        <li>Белый гранит и известняк на фасадах: цвет отражает солнце и держит единый образ с Большой мечетью шейха Зайда.</li>
-        <li>Купола и двери украшены сусальным золотом 23 карат; двери — массив дерева с ручной резьбой.</li>
-        <li>Классические мотивы исламского искусства: мукарны, геометрические орнаменты, витражи, арабская каллиграфия.</li>
-      </ul></div>
-      <div><h3>Функция</h3><p>Это не музей в чистом виде, а действующее здание: в нём работают президент, наследный принц и вице-президенты, проходят заседания Федерального высшего совета и кабинета министров, государственные визиты и саммиты ССАГПЗ и ЛАГ. Поэтому дворец иногда закрывают для посетителей из-за протокольных мероприятий.</p></div>
-    </div>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">Проверка фактов</div>
-    <h2>Что подтверждено, а что спорно</h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Утверждение</th><th>Статус</th><th>Комментарий</th></tr></thead>
-      <tbody>
-        <tr><td>Купол Большого зала 37 м в диаметре, высота 60 м</td><td><span class="badge ok">Подтверждено</span></td><td>Официальный сайт дворца и Википедия.</td></tr>
-        <tr><td>Люстра 350 000 кристаллов, ≈ 12 т</td><td><span class="badge ok">Подтверждено</span></td><td>Цифры совпадают во всех источниках. Где она висит, источники расходятся: чаще называют зал «Дух сотрудничества», реже — Большой зал.</td></tr>
-        <tr><td>Площадь «380 акров»</td><td><span class="badge warn">Ошибка в сети</span></td><td>Верно 380 000 м² (≈ 94 акра). Цифра в акрах — популярная путаница.</td></tr>
-        <tr><td>149 000 предметов сервировки</td><td><span class="badge ok">Подтверждено</span></td><td>Состав описывают по-разному: серебро, хрусталь и фарфор либо только фарфор с ручной гравировкой.</td></tr>
-        <tr><td>Библиотека 50 000+ книг</td><td><span class="badge ok">Подтверждено</span></td><td>Несколько независимых путеводителей.</td></tr>
-        <tr><td>Начало строительства 2010 г.</td><td><span class="badge warn">Один источник</span></td><td>Окончание в 2017 г. подтверждено лучше.</td></tr>
-        <tr><td>Золото 23 карата в куполе «Духа сотрудничества»</td><td><span class="badge warn">Не подтверждено</span></td><td>23 карата надёжно описаны для Большого зала и дверей; для купола зала саммитов есть только туристические блоги.</td></tr>
-        <tr><td>Часы работы и цены</td><td><span class="badge warn">Меняются</span></td><td>Официальный сайт предупреждает, что график меняется; расписание шоу обновляется ежемесячно.</td></tr>
-      </tbody>
-    </table></div>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">Посещение</div>
-    <h2>Практическая информация</h2>
-    <div class="cols">
-      <div><h3>Билеты</h3><ul>
-        <li>Общий билет — около 65 AED у официального оператора; у реселлеров встречаются цены 39–65 AED.</li>
-        <li>Билет включает дворец, сады и вечернее шоу Palace in Motion. Шоу можно купить и отдельно.</li>
-        <li>При отмене шоу билет переносят, деньги не возвращают.</li>
-      </ul></div>
-      <div><h3>Время</h3><ul>
-        <li>Обычно с 10:00 до 17:00–19:00, шоу после заката (около 18:30–20:00 в зависимости от сезона).</li>
-        <li>Закрытия возможны из-за государственных мероприятий.</li>
-        <li>Перед поездкой сверьте расписание на qasralwatan.ae.</li>
-      </ul></div>
-      <div><h3>Правила</h3><ul>
-        <li>Скромная одежда: закрытые плечи и колени.</li>
-        <li>Вход через центр посетителей, далее шаттл до дворца.</li>
-        <li>На визит закладывайте 2–3 часа плюс время на шоу.</li>
-      </ul></div>
-    </div>
-  </section>
-
-  <section class="block">
-    <div class="eyebrow">Источники</div>
-    <h2>Использованные материалы</h2>
-    <ul class="sources">
-      <li><a href="https://qasralwatan.ae/en/explore-the-palace/the-great-hall" target="_blank" rel="noopener">Qasr Al Watan — The Great Hall (официальный сайт)</a></li>
-      <li><a href="https://www.qasralwatan.ae/en/tickets/qasr-al-watan-ticket" target="_blank" rel="noopener">Qasr Al Watan — билеты</a></li>
-      <li><a href="https://www.qasralwatan.ae/en/tickets/palace-in-motion-ticket" target="_blank" rel="noopener">Qasr Al Watan — Palace in Motion</a></li>
-      <li><a href="https://www.aard.gov.ae/Media-Centre/News/10-03-2019-3" target="_blank" rel="noopener">Правительство Абу-Даби: открытие дворца, 10.03.2019</a></li>
-      <li><a href="https://en.wikipedia.org/wiki/Qasr_Al_Watan" target="_blank" rel="noopener">Wikipedia — Qasr Al Watan</a></li>
-      <li><a href="https://gulfnews.com/uae/the-impressive-qasr-al-watan-in-numbers-1.1557651867589" target="_blank" rel="noopener">Gulf News — Qasr Al Watan in numbers</a></li>
-      <li><a href="https://gulfnews.com/uae/visiting-qasr-al-watan-heres-the-best-things-to-see-1.1554197863082" target="_blank" rel="noopener">Gulf News — best things to see</a></li>
-      <li><a href="https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan" target="_blank" rel="noopener">Khaleej Times — ultimate guide</a></li>
-      <li><a href="https://thenationalnews.com/weekend/2022/08/05/inside-the-spirit-of-collaboration-room-the-seat-of-summits-in-abu-dhabi" target="_blank" rel="noopener">The National — Spirit of Collaboration</a></li>
-      <li><a href="https://www.thenationalnews.com/news/uae/2025/05/15/qasr-al-watan-inside-abu-dhabis-presidential-palace-hosting-donald-trump" target="_blank" rel="noopener">The National — визит 2025</a></li>
-      <li><a href="https://gulftoday.ae/Culture/2021/06/28/Some-interesting-facts-of-The-Great-Hall-in-Qasr-Al-Watan" target="_blank" rel="noopener">Gulf Today — The Great Hall</a></li>
-      <li><a href="https://www.prnewswire.com/il/news-releases/qasr-al-watan-the-uaes-newest-cultural-landmark-opens-to-visitors-300810061.html" target="_blank" rel="noopener">PR Newswire — открытие для посетителей</a></li>
-      <li><a href="https://gulfbusiness.com/en/2019/uae/pictures-inside-abu-dhabis-presidential-palace-now-open-public/" target="_blank" rel="noopener">Gulf Business — фото интерьеров</a></li>
-      <li><a href="https://visitabudhabi.ae/en/things-to-do/culture/landmarks-and-architecture/qasr-al-watan" target="_blank" rel="noopener">Visit Abu Dhabi</a></li>
-      <li><a href="https://www.etihad.com/en/abu-dhabi/attractions/qasr-al-watan" target="_blank" rel="noopener">Etihad — путеводитель</a></li>
-    </ul>
-  </section>
-  <footer>Данные проверены на ноябрь 2026 г. Макет создан для образовательных целей и не является архитектурным чертежом.</footer>
+  <button id="bCut" aria-pressed="false">Разрез</button>
+  <button id="bTour" aria-pressed="false">Экскурсия</button>
+  <button id="bHome">Общий вид</button>
+  <button id="bDossier">Досье</button>
 </div>
+
+<div class="rail"><nav class="glass" id="rail" aria-label="Залы и пространства"></nav></div>
+
+<div class="inside-bar glass" id="insideBar" hidden><span id="insideName">Внутри зала</span><button id="bExit">Выйти наружу</button></div>
+
+<aside class="drawer glass" id="drawer" aria-live="polite">
+  <button class="close" id="bClose" aria-label="Закрыть">×</button>
+  <div class="scroll" id="dscroll"></div>
+</aside>
+
+<div class="loader" id="loader"><div><strong>Qasr Al Watan</strong><span id="loadMsg">Строим дворец…</span></div></div>
+
+<section class="dossier" id="dossier" aria-label="Досье">
+  <div class="dwrap">
+    <div class="dhead"><div><div class="zone">Проверенные данные</div><h2>Досье дворца</h2></div><button id="bDClose">Вернуться к модели</button></div>
+    <div class="dsec"><div class="zone">Ключевые цифры</div><h3>Дворец в числах</h3>
+      <div class="nums">
+        <div><strong>380 000 м²</strong><span>площадь комплекса Президентского дворца (≈ 94 акра)</span></div>
+        <div><strong>37 м</strong><span>диаметр купола Большого зала</span></div>
+        <div><strong>60 м</strong><span>высота Большого зала под куполом</span></div>
+        <div><strong>350 000</strong><span>кристаллов в люстре зала «Дух сотрудничества», ≈ 12 т</span></div>
+        <div><strong>149 000</strong><span>предметов сервировки Президентского банкета</span></div>
+        <div><strong>50 000+</strong><span>книг в библиотеке Qasr Al Watan</span></div>
+      </div></div>
+    <div class="dsec"><div class="zone">История</div><h3>Хронология</h3>
+      <ol class="tl">
+        <li><time>2010–2017</time><div>Строительство в районе Рас-эль-Ахдар на западной оконечности острова Абу-Даби. Завершение в 2017 г. подтверждают несколько источников, начало в 2010 г. — один.</div></li>
+        <li><time>10 мар 2019</time><div>Шейх Мохаммед бин Рашид Аль Мактум и шейх Мохамед бин Заид Аль Нахайян торжественно открывают Qasr Al Watan.</div></li>
+        <li><time>11 мар 2019</time><div>Дворец впервые принимает публику, оставаясь рабочей резиденцией главы государства. Запущено вечернее шоу Palace in Motion.</div></li>
+        <li><time>авг 2022</time><div>Посетителям снова открыт зал «Дух сотрудничества».</div></li>
+        <li><time>май 2025</time><div>Дворец принимает государственный визит президента США.</div></li>
+        <li><time>авг 2026</time><div>По данным The National, Qasr Al Watan вошёл в мировой список 100 лучших мест для путешествий 2026 года.</div></li>
+      </ol></div>
+    <div class="dsec"><div class="zone">Архитектура</div><h3>Как устроен ансамбль</h3>
+      <div class="cols">
+        <div><h4>Композиция</h4><p>Строгая симметрия. Огромный парадный двор с геометрической мостовой из светлого мрамора и серого гранита обрамлён двумя аркадами, их концы отмечены кубическими павильонами-воротами под резными куполами. В глубине двора стоит главный фасад: портал-айван в центре, над ним две купольные группы, по сторонам — длинные крылья с аркадой первого этажа.</p></div>
+        <div><h4>Материалы</h4><ul><li>Белый гранит и известняк на фасадах.</li><li>Купола покрыты рельефной резной решёткой, навершия золотые.</li><li>В интерьерах: сусальное золото, мукарны, восьмиконечные звёздные орнаменты, голубые витражи в барабане купола.</li></ul></div>
+        <div><h4>Функция</h4><p>Это не музей, а действующее здание: здесь проходят заседания Федерального высшего совета и кабинета министров, государственные визиты и саммиты. Из-за протокольных событий дворец иногда закрывают для посетителей.</p></div>
+      </div></div>
+    <div class="dsec"><div class="zone">Проверка фактов</div><h3>Что подтверждено, а что спорно</h3>
+      <div class="tw"><table><thead><tr><th>Утверждение</th><th>Статус</th><th>Комментарий</th></tr></thead><tbody>
+        <tr><td>Купол Большого зала: 37 м в диаметре, 60 м в высоту</td><td><span class="badge ok">Подтверждено</span></td><td>Официальный сайт дворца, Википедия.</td></tr>
+        <tr><td>Люстра из 350 000 кристаллов весом ≈ 12 т</td><td><span class="badge ok">Подтверждено</span></td><td>Цифры совпадают. Большинство источников помещают её в зал «Дух сотрудничества», некоторые — в Большой зал.</td></tr>
+        <tr><td>Площадь «380 акров»</td><td><span class="badge warn">Ошибка</span></td><td>Правильно 380 000 м², то есть около 94 акров.</td></tr>
+        <tr><td>149 000 предметов сервировки</td><td><span class="badge ok">Подтверждено</span></td><td>Один источник называет «более 100 000».</td></tr>
+        <tr><td>Библиотека 50 000+ книг</td><td><span class="badge ok">Подтверждено</span></td><td>Один гид называет 40 000.</td></tr>
+        <tr><td>Начало строительства в 2010 г.</td><td><span class="badge warn">Один источник</span></td><td>Окончание в 2017 г. подтверждено лучше.</td></tr>
+        <tr><td>Цены и часы работы</td><td><span class="badge warn">Меняются</span></td><td>Сверяйте с qasralwatan.ae: расписание шоу обновляется ежемесячно.</td></tr>
+      </tbody></table></div></div>
+    <div class="dsec"><div class="zone">Посещение</div><h3>Практическая информация</h3>
+      <div class="cols">
+        <div><h4>Билеты</h4><ul><li>Общий билет у официального оператора — около 65 AED, у реселлеров 39–65 AED.</li><li>Билет включает дворец, сады и шоу Palace in Motion.</li></ul></div>
+        <div><h4>Время</h4><ul><li>Обычно с 10:00 до 17:00–19:00, шоу после заката.</li><li>Возможны закрытия из-за государственных мероприятий.</li></ul></div>
+        <div><h4>Правила</h4><ul><li>Скромная одежда: закрытые плечи и колени.</li><li>Вход через центр посетителей, дальше шаттл.</li><li>Закладывайте 2–3 часа.</li></ul></div>
+      </div></div>
+    <div class="dsec"><div class="zone">О модели</div><h3>Насколько модель точна</h3>
+      <p class="note" style="max-width:70ch;font-size:14px">Внешний облик воспроизведён по фотографиям: парадный двор, аркады, павильоны-ворота, главный фасад с порталом и купольной группой, сады с бассейнами. Размер купола Большого зала дан в реальном масштабе (37 м). Габариты крыльев и двора оценены по фото. Внутренние планы действующей резиденции не публикуются, поэтому положение залов в крыльях условное, а интерьеры — реконструкции по описаниям и фото.</p></div>
+    <div class="dsec"><div class="zone">Источники</div><h3>Материалы</h3>
+      <ul class="srcs">
+        <li><a href="https://qasralwatan.ae/en/explore-the-palace/the-great-hall" target="_blank" rel="noopener">Qasr Al Watan — The Great Hall</a></li>
+        <li><a href="https://www.qasralwatan.ae/en/tickets/qasr-al-watan-ticket" target="_blank" rel="noopener">Qasr Al Watan — билеты</a></li>
+        <li><a href="https://www.aard.gov.ae/Media-Centre/News/10-03-2019-3" target="_blank" rel="noopener">Правительство Абу-Даби — открытие, 10.03.2019</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Qasr_Al_Watan" target="_blank" rel="noopener">Wikipedia — Qasr Al Watan</a></li>
+        <li><a href="https://www.wikidata.org/wiki/Q61973220" target="_blank" rel="noopener">Wikidata — координаты</a></li>
+        <li><a href="https://gulfnews.com/uae/the-impressive-qasr-al-watan-in-numbers-1.1557651867589" target="_blank" rel="noopener">Gulf News — Qasr Al Watan in numbers</a></li>
+        <li><a href="https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan" target="_blank" rel="noopener">Khaleej Times — гид</a></li>
+        <li><a href="https://thenationalnews.com/weekend/2022/08/05/inside-the-spirit-of-collaboration-room-the-seat-of-summits-in-abu-dhabi" target="_blank" rel="noopener">The National — Spirit of Collaboration</a></li>
+        <li><a href="https://www.thenationalnews.com/news/uae/2025/05/15/qasr-al-watan-inside-abu-dhabis-presidential-palace-hosting-donald-trump/" target="_blank" rel="noopener">The National — визит 2025</a></li>
+        <li><a href="https://www.thenationalnews.com/arts-culture/2026/08/05/qasr-al-watan-named-among-worlds-top-100-travel-spots-for-2026/" target="_blank" rel="noopener">The National — топ-100 мест 2026</a></li>
+        <li><a href="https://gulftoday.ae/Culture/2021/06/28/Some-interesting-facts-of-The-Great-Hall-in-Qasr-Al-Watan" target="_blank" rel="noopener">Gulf Today — The Great Hall</a></li>
+        <li><a href="https://www.prnewswire.com/il/news-releases/qasr-al-watan-the-uaes-newest-cultural-landmark-opens-to-visitors-300810061.html" target="_blank" rel="noopener">PR Newswire — открытие</a></li>
+        <li><a href="https://visitabudhabi.ae/en/things-to-do/culture/landmarks-and-architecture/qasr-al-watan" target="_blank" rel="noopener">Visit Abu Dhabi</a></li>
+        <li><a href="https://commons.wikimedia.org/wiki/Category:UAE_Presidential_Palace" target="_blank" rel="noopener">Wikimedia Commons — фото дворца</a></li>
+      </ul></div>
+  </div>
+</section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
 <script>
-const ROOMS = [
-  {id:"great", name:"Большой зал", en:"The Great Hall", ar:"القاعة الكبرى", zone:"Центр · главный купол", ok:true,
-   text:"Сердце дворца и его главный церемониальный зал под центральным куполом. Отделка в белых и золотых тонах, сусальное золото 23 карата, мукарны и геометрические орнаменты. Через зал проходят все гости, его используют для официальных встреч на высшем уровне.",
-   facts:[["37 м","диаметр купола; по ряду источников он больше главного купола Большой мечети шейха Зайда"],["60 м","высота до вершины купола"],["23 карата","сусальное золото в отделке"]]},
-  {id:"spirit", name:"Дух сотрудничества", en:"Spirit of Collaboration", ar:"روح التعاون", zone:"Западное крыло · купол", ok:true,
-   text:"Зал заседаний Федерального высшего совета и кабинета министров ОАЭ, а также саммитов ССАГПЗ, Лиги арабских государств и Африканского союза. В центре — большой круглый стол под куполом с огромной люстрой. В 2022 году зал снова открыт для посетителей.",
-   facts:[["350 000","кристаллов в люстре"],["≈ 12 т","вес люстры; внутри неё есть лестница для обслуживания"],["Саммиты","ССАГПЗ, ЛАГ, Федеральный высший совет"]], warn:"Ряд источников помещает люстру в Большой зал; большинство — сюда."},
-  {id:"banquet", name:"Президентский банкет", en:"The Presidential Banquet", ar:"المأدبة الرئاسية", zone:"Западное крыло", ok:true,
-   text:"Зал для государственных ужинов в честь глав государств. Экспонируется сервировка, изготовленная специально для дворца.",
-   facts:[["149 000","предметов из серебра, хрусталя и фарфора"],["≈ 300","мест по описаниям прессы 2019 г."]]},
-  {id:"barza", name:"Аль-Барза", en:"Al Barza", ar:"البرزة", zone:"Западное крыло", ok:true,
-   text:"Меджлис, традиционное место собраний, где правитель выслушивает граждан и решения принимаются через консенсус. Посетителям показывают мультимедийную программу о меджлисе как основе эмиратского управления. По описаниям Khaleej Times — второй по величине зал после Большого.",
-   facts:[["до 300","гостей"],["2-й","по размеру зал дворца"]]},
-  {id:"knowledge", name:"Дом знаний", en:"House of Knowledge", ar:"بيت المعرفة", zone:"Восточное крыло", ok:true,
-   text:"Два зала с редкими рукописями, книгами и артефактами, показывающими вклад арабского мира в науку, искусство, гуманитарные знания и литературу.",
-   facts:[["2","экспозиционных зала"],["Бирмингемский Коран","факсимиле одного из древнейших фрагментов Корана"],["Атлас","рукопись по астрономии"]]},
-  {id:"gifts", name:"Президентские дары", en:"Presidential Gifts", ar:"الهدايا الرئاسية", zone:"Восточное крыло", ok:true,
-   text:"Коллекция дипломатических подарков, которые руководители ОАЭ получили во время государственных визитов.",
-   facts:[["Туркменистан","ковры"],["Казахстан","парадные меч и щит"],["Япония","доспехи самурая"]]},
-  {id:"library", name:"Библиотека Qasr Al Watan", en:"Qasr Al Watan Library", ar:"مكتبة قصر الوطن", zone:"Отдельный павильон", ok:true,
-   text:"Библиотека о культурной, социальной и политической истории ОАЭ и региона. Работает как читальный зал для посетителей и исследователей.",
-   facts:[["50 000+","книг и материалов"]]},
-  {id:"show", name:"Palace in Motion", en:"Palace in Motion", ar:"القصر في حركة", zone:"Главный фасад · вечер", ok:true,
-   text:"Световое и звуковое шоу, проецируемое на фасад дворца после заката. Три акта рассказывают о прошлом, настоящем и будущем ОАЭ. Включите режим «Ночь», чтобы увидеть проекцию на макете.",
-   facts:[["3","акта: прошлое, настоящее, будущее"],["С 2019","идёт ежедневно, время зависит от сезона"]], warn:"Время начала источники называют по-разному (18:30–20:00): смотрите официальный сайт."},
-  {id:"gardens", name:"Сады дворца", en:"Palace Gardens", ar:"حدائق القصر", zone:"Перед главным фасадом", ok:true,
-   text:"Регулярный парк с фонтанами и водными каналами на оси главного входа. Отсюда открывается классический вид на фасад и купол, здесь же собираются зрители вечернего шоу.",
-   facts:[["380 000 м²","весь комплекс Президентского дворца"]]},
-  {id:"visitor", name:"Центр посетителей", en:"Visitor Centre", ar:"مركز الزوار", zone:"Вход в комплекс", ok:true,
-   text:"Точка входа: кассы, досмотр, сувенирный магазин и кафе. Отсюда шаттл везёт гостей к дворцу.",
-   facts:[["Шаттл","до главного здания"]]}
+/* ======================= DATA ======================= */
+const WP='https://en.wikipedia.org/wiki/File:', CM='https://commons.wikimedia.org/wiki/File:';
+const HALLS=[
+ {id:'great',n:1,name:'Большой зал',en:'The Great Hall',ar:'القاعة الكبرى',zone:'Центр дворца · главный купол',inside:true,
+  text:'Главный церемониальный зал дворца и его символ. Квадратное пространство перекрыто куполом на парусах. В барабане купола ряд арочных окон с голубыми витражами, между арками — светящиеся решётчатые плафоны. Стены покрыты резными восьмиконечными звёздами, порталы украшены мукарнами и золотом.',
+  facts:[['37 м','диаметр купола'],['60 м','высота до вершины купола'],['23 кар.','сусальное золото в отделке'],['1 из крупнейших','куполов мира, по данным путеводителей']],
+  wow:['Купол шире главного купола Большой мечети шейха Зайда — так пишут несколько изданий.','Освещение подчёркивает геометрию: потолочные решётки светятся изнутри.','Через этот зал проходят все государственные делегации.'],
+  photos:[{src:'photos/great-hall.jpg',cap:'Большой зал: купол, витражи и резные порталы',credit:'Wikipedia, файл Qasr_Al_Watan.jpg',link:WP+'Qasr_Al_Watan.jpg'}],
+  src:[['Официальный сайт','https://qasralwatan.ae/en/explore-the-palace/the-great-hall'],['Gulf Today','https://gulftoday.ae/Culture/2021/06/28/Some-interesting-facts-of-The-Great-Hall-in-Qasr-Al-Watan']]},
+ {id:'spirit',n:2,name:'Дух сотрудничества',en:'Spirit of Collaboration',ar:'روح التعاون',zone:'Крыло государственных церемоний · купол',inside:true,
+  text:'Круглый зал под собственным куполом, построенный для заседаний Федерального высшего совета и кабинета министров ОАЭ, а также саммитов ССАГПЗ и Лиги арабских государств. В центре кольцевой стол переговоров, над ним висит знаменитая люстра.',
+  facts:[['350 000','кристаллов в люстре'],['≈ 12 т','вес люстры'],['2022','повторно открыт для посетителей'],['ССАГПЗ · ЛАГ','проводимые здесь саммиты']],
+  wow:['Внутри люстры есть небольшая лестница для обслуживания.','По одному из описаний, кристаллы ещё и гасят эхо в огромном зале.','Зал до сих пор используется по назначению, поэтому иногда закрыт.'],
+  warn:'Некоторые источники помещают люстру в Большой зал, большинство — сюда.',
+  photos:[],off:'https://thenationalnews.com/weekend/2022/08/05/inside-the-spirit-of-collaboration-room-the-seat-of-summits-in-abu-dhabi',
+  src:[['The National, 2022','https://thenationalnews.com/weekend/2022/08/05/inside-the-spirit-of-collaboration-room-the-seat-of-summits-in-abu-dhabi'],['Wikipedia','https://en.wikipedia.org/wiki/Qasr_Al_Watan']]},
+ {id:'banquet',n:3,name:'Президентский банкет',en:'The Presidential Banquet',ar:'المأدبة الرئاسية',zone:'Крыло государственных церемоний',inside:true,
+  text:'Зал государственных ужинов в честь глав государств. Здесь выставлена сервировка, изготовленная специально для дворца: серебро, хрусталь и фарфор.',
+  facts:[['149 000','предметов сервировки'],['≈ 300','мест (Khaleej Times, 2019)']],
+  wow:['Весь сервиз сделан в единственном экземпляре для дворца.','Фарфор, по описаниям, с ручной гравировкой.'],
+  photos:[],off:'https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan',
+  src:[['Khaleej Times','https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan'],['PR Newswire','https://www.prnewswire.com/il/news-releases/qasr-al-watan-the-uaes-newest-cultural-landmark-opens-to-visitors-300810061.html']]},
+ {id:'barza',n:4,name:'Аль-Барза',en:'Al Barza',ar:'البرزة',zone:'Крыло государственных церемоний',inside:true,
+  text:'Меджлис, традиционное место собраний, где правитель выслушивает граждан, а решения принимаются через консультации и консенсус. Посетителям показывают мультимедийный рассказ о меджлисе как основе эмиратского управления.',
+  facts:[['до 300','гостей'],['2-й','по величине зал дворца']],
+  wow:['Слово «барза» в Заливе означает открытый приём у правителя.','Зал уступает размером только Большому залу.'],
+  photos:[],off:'https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan',
+  src:[['Khaleej Times','https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan']]},
+ {id:'knowledge',n:5,name:'Дом знаний',en:'House of Knowledge',ar:'بيت المعرفة',zone:'Крыло знаний и наследия',inside:true,
+  text:'Два зала с редкими рукописями, книгами и артефактами о вкладе арабского мира в науку, искусство, гуманитарные знания и литературу.',
+  facts:[['2','экспозиционных зала'],['VII в.','эпоха Бирмингемского Корана, копия которого здесь выставлена']],
+  wow:['Среди экспонатов — копия Бирмингемского Корана, одного из древнейших известных фрагментов.','Есть атлас-рукопись по астрономии.'],
+  photos:[],off:'https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan',
+  src:[['Khaleej Times','https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan'],['Gulf Business','https://gulfbusiness.com/en/2019/uae/pictures-inside-abu-dhabis-presidential-palace-now-open-public/']]},
+ {id:'gifts',n:6,name:'Президентские дары',en:'Presidential Gifts',ar:'الهدايا الرئاسية',zone:'Крыло знаний и наследия',inside:true,
+  text:'Коллекция дипломатических подарков, которые руководители ОАЭ получили во время государственных визитов. На фото — орден Нидерландского льва (большой крест) из этой экспозиции.',
+  facts:[['Туркменистан','ковры'],['Казахстан','парадные меч и щит'],['Япония','доспехи самурая'],['Нидерланды','орден Нидерландского льва']],
+  wow:['Каждый экспонат — след конкретного государственного визита.','Витрины освещены точечно, на тёмном фоне.'],
+  photos:[{src:'photos/gifts-order.jpg',cap:'Орден Нидерландского льва в экспозиции дворца',credit:'Matti Blume, CC BY-SA',link:CM+'Qasr_Al_Watan,_Abu_Dhabi_(P1100942).jpg'}],
+  src:[['Khaleej Times','https://www.khaleejtimes.com/uae/your-ultimate-guide-to-uaes-latest-landmark-qasr-al-watan'],['Wikimedia Commons','https://commons.wikimedia.org/wiki/File:Qasr_Al_Watan,_Abu_Dhabi_(P1100942).jpg']]},
+ {id:'facade',n:7,name:'Главный фасад',en:'Main Façade',ar:'الواجهة الرئيسية',zone:'Западный край парадного двора',inside:false,
+  text:'Симметричный фасад из белого гранита и известняка. В центре — высокий портал-айван со стрельчатой аркой, над ним две купольные группы: передний купол и главный купол Большого зала. По сторонам тянутся крылья с аркадой первого этажа и рядами арочных окон.',
+  facts:[['белый','гранит и известняк'],['2017','завершение строительства']],
+  wow:['Купола покрыты тонкой резной решёткой, издали они кажутся кружевными.','Белый цвет отражает солнце и перекликается с Большой мечетью шейха Зайда.','Вечером фасад становится экраном для шоу Palace in Motion.'],
+  photos:[{src:'photos/facade.jpg',cap:'Главный фасад из центра парадного двора',credit:'Renek78, Wikipedia',link:WP+'Qasr_Al_Watan_in_March_2022_02.jpg'}],
+  src:[['Wikipedia','https://en.wikipedia.org/wiki/Qasr_Al_Watan']]},
+ {id:'court',n:8,name:'Парадный двор',en:'Ceremonial Forecourt',ar:'الساحة',zone:'Перед главным фасадом',inside:false,
+  text:'Огромная площадь, вымощенная светлым мрамором и серым гранитом в виде геометрических звёзд. С севера и юга её замыкают аркады, на углах стоят кубические павильоны-ворота под резными куполами. В центре — белые мраморные бассейны в форме звезды.',
+  facts:[['8-лучевые','звёзды в рисунке мостовой'],['2','длинные аркады по бокам']],
+  wow:['Через арки видны небоскрёбы Etihad Towers.','Вдоль аркад стоят многорожковые фонари.'],
+  photos:[{src:'photos/forecourt.jpg',cap:'Панорама двора: слева дворец, справа аркада',credit:'Wikimedia Commons, серия «Qasr Al Watan in March 2022»',link:CM+'Qasr_Al_Watan_in_March_2022_13.jpg'},{src:'photos/gate-pavilion.jpg',cap:'Павильон-ворота под резным куполом',credit:'Wikimedia Commons',link:CM+'UAE_Presidential_Palace_entrance_01.jpg'}],
+  src:[['Wikimedia Commons','https://commons.wikimedia.org/wiki/Category:UAE_Presidential_Palace']]},
+ {id:'gardens',n:9,name:'Сады дворца',en:'Palace Gardens',ar:'حدائق القصر',zone:'К востоку от парадного двора',inside:false,
+  text:'Регулярный парк с большими зеркальными бассейнами, облицованными мозаикой, аллеями финиковых пальм, цветниками и фонтанами в форме восьмиконечной звезды. Отсюда открывается вид на небоскрёбы Абу-Даби.',
+  facts:[['380 000 м²','весь комплекс'],['8-лучевые','мозаичные фонтаны']],
+  wow:['Борта бассейнов выложены золотой и бирюзовой мозаикой.','Здесь собираются зрители вечернего шоу.'],
+  photos:[{src:'photos/gardens-avenue.jpg',cap:'Пальмовая аллея и мозаичный фонтан-звезда',credit:'Wikimedia Commons, файл Qasr_Al_Watan_13.jpg',link:CM+'Qasr_Al_Watan_13.jpg'},{src:'photos/gardens-pool.jpg',cap:'Зеркальный бассейн с мозаичным бортом',credit:'Wikimedia Commons, серия «Qasr Al Watan in March 2022»',link:CM+'Qasr_Al_Watan_in_March_2022_10.jpg'},{src:'photos/gardens-city.jpg',cap:'Вид из садов на Etihad Towers',credit:'Wikimedia Commons, серия «Qasr Al Watan in March 2022»',link:CM+'Qasr_Al_Watan_in_March_2022_09.jpg'}],
+  src:[['Wikimedia Commons','https://commons.wikimedia.org/wiki/Category:UAE_Presidential_Palace']]},
+ {id:'show',n:10,name:'Palace in Motion',en:'Palace in Motion',ar:'القصر في حركة',zone:'Главный фасад · после заката',inside:false,
+  text:'Световое и звуковое шоу, которое проецируют на фасад дворца после заката. Три акта рассказывают о прошлом, настоящем и будущем ОАЭ. При выборе этой карточки модель переключается в ночь и показывает проекцию.',
+  facts:[['3','акта'],['с 2019','идёт ежедневно']],
+  wow:['Билет во дворец обычно включает шоу.','Если шоу отменяют, билет переносят, а не возвращают деньги.'],
+  warn:'Время начала источники называют по-разному (18:30–20:00); расписание обновляется ежемесячно.',
+  photos:[],off:'https://www.qasralwatan.ae/en/tickets/palace-in-motion-ticket',
+  src:[['Официальный сайт','https://www.qasralwatan.ae/en/tickets/palace-in-motion-ticket']]},
+ {id:'library',n:11,name:'Библиотека',en:'Qasr Al Watan Library',ar:'مكتبة قصر الوطن',zone:'Комплекс дворца · положение условно',inside:true,
+  text:'Библиотека о культурной, социальной и политической истории ОАЭ и региона. Открыта для посетителей и исследователей.',
+  facts:[['50 000+','книг и материалов'],['AR · EN','арабский и английский фонды']],
+  wow:['Один из путеводителей называет 40 000 книг: цифры разнятся по годам.'],
+  photos:[],off:'https://commons.wikimedia.org/wiki/Category:UAE_Presidential_Palace',
+  src:[['Visit Abu Dhabi','https://visitabudhabi.ae/en/things-to-do/culture/landmarks-and-architecture/qasr-al-watan']]},
+ {id:'visitor',n:12,name:'Центр посетителей',en:'Visitor Centre',ar:'مركز الزوار',zone:'Вход в комплекс · положение условно',inside:false,
+  text:'Точка входа: кассы, досмотр, магазин и кафе. Отсюда шаттл везёт гостей к дворцу.',
+  facts:[['шаттл','до дворца'],['10:00','обычное время открытия']],
+  wow:['Рядом с входом стоят павильоны в том же стиле, что и ворота двора.'],
+  photos:[{src:'photos/gate-pavilion.jpg',cap:'Павильон у входной зоны',credit:'Wikimedia Commons',link:CM+'UAE_Presidential_Palace_entrance_01.jpg'}],
+  src:[['Официальный сайт','https://www.qasralwatan.ae/en/tickets/qasr-al-watan-ticket']]}
 ];
 
-const info = document.getElementById('info');
-const list = document.getElementById('roomlist');
-const cards = document.getElementById('roomcards');
-let current = null;
-
-function renderInfo(r){
-  if(!r){
-    info.innerHTML = `<div class="eyebrow">Выберите зал</div><h2>Обзор дворца</h2>
-      <p>Qasr Al Watan — действующий Президентский дворец ОАЭ, открытый для публики с 11 марта 2019 года. В ансамбле: Большой зал под 37-метровым куполом, западное крыло государственных церемоний и восточное крыло знаний и наследия.</p>
-      <ul class="facts"><li><b>380 000 м²</b><span>площадь комплекса</span></li><li><b>10</b><span>интерактивных зон на макете</span></li></ul>
-      <p class="note">Нажмите на элемент макета или на название зала ниже.</p>`;
-    return;
-  }
-  info.innerHTML = `<div class="eyebrow">${r.zone}</div><h2>${r.name}</h2><div class="ar" lang="ar">${r.ar}</div>
-    <div class="note">${r.en}</div><p>${r.text}</p>
-    <ul class="facts">${r.facts.map(f=>`<li><b>${f[0]}</b><span>${f[1]}</span></li>`).join('')}</ul>
-    ${r.warn?`<span class="badge warn">Расхождение в источниках</span><p class="note">${r.warn}</p>`:`<span class="badge ok">Сверено по источникам</span>`}`;
-  info.scrollTop = 0;
-}
-ROOMS.forEach(r=>{
-  const b=document.createElement('button'); b.textContent=r.name; b.dataset.id=r.id; b.id='rl-'+r.id;
-  b.onclick=()=>select(r.id,true); list.appendChild(b);
-  const c=document.createElement('article'); c.className='room';
-  c.innerHTML=`<div class="zone">${r.zone}</div><h3>${r.name}</h3><div class="note">${r.en} · <span lang="ar">${r.ar}</span></div><p>${r.text}</p>
-   <ul class="facts">${r.facts.map(f=>`<li><b>${f[0]}</b><span>${f[1]}</span></li>`).join('')}</ul>
-   <button class="chip" id="card-${r.id}">Показать на макете</button>`;
-  c.querySelector('button').onclick=()=>{select(r.id,true);document.getElementById('box').scrollIntoView({behavior:'smooth',block:'center'})};
-  cards.appendChild(c);
+/* ======================= UI ======================= */
+const $=s=>document.querySelector(s);
+const drawer=$('#drawer'), dscroll=$('#dscroll'), rail=$('#rail'), pinsEl=$('#pins');
+let current=null, photoIdx=0, api=null;
+HALLS.forEach(h=>{
+  const b=document.createElement('button'); b.id='r-'+h.id; b.innerHTML=`<i>${String(h.n).padStart(2,'0')}</i>${h.name}`;
+  b.onclick=()=>select(h.id); rail.appendChild(b);
+  const p=document.createElement('button'); p.className='pin'; p.id='p-'+h.id; p.setAttribute('aria-label',h.name);
+  p.innerHTML=`<b><em>${h.n}</em>${h.name}</b>`; p.onclick=()=>select(h.id); pinsEl.appendChild(p); h.pin=p;
 });
-renderInfo(null);
+function photoBlock(h){
+  if(!h.photos.length) return `<div class="ph empty"><div><strong>Фото под защитой авторских прав</strong>Свободных снимков этого зала нет: в ОАЭ нет «свободы панорамы», и фото интерьеров удалены с Wikimedia. Ниже — реконструкция в модели; официальные фото: <a href="${h.off}" target="_blank" rel="noopener">открыть источник</a>.</div></div>`;
+  const ph=h.photos[photoIdx%h.photos.length];
+  return `<div class="ph"><img src="${ph.src}" alt="${ph.cap}" loading="eager">
+    ${h.photos.length>1?`<span class="count">${photoIdx%h.photos.length+1} / ${h.photos.length}</span><button class="nav prev" aria-label="Предыдущее фото">‹</button><button class="nav next" aria-label="Следующее фото">›</button>`:''}
+    <div class="cap">${ph.cap}. Фото: <a href="${ph.link}" target="_blank" rel="noopener">${ph.credit}</a></div></div>`;
+}
+function render(){
+  const h=current; if(!h) return;
+  dscroll.innerHTML=`${photoBlock(h)}<div class="body">
+    <div class="zone">${String(h.n).padStart(2,'0')} · ${h.zone}</div><h2>${h.name}</h2>
+    <div class="names"><span>${h.en}</span><span class="ar" lang="ar">${h.ar}</span></div>
+    <p>${h.text}</p>
+    <div class="acts">${h.inside?`<button class="primary" id="bIn">Войти в зал</button>`:''}<button id="bFly">Показать на модели</button></div>
+    <div class="facts">${h.facts.map(f=>`<div><strong>${f[0]}</strong><span>${f[1]}</span></div>`).join('')}</div>
+    <div class="h3">Самое интересное</div><ul class="wow">${h.wow.map(w=>`<li>${w}</li>`).join('')}</ul>
+    ${h.warn?`<span class="badge warn">Расхождение в источниках</span><p class="note">${h.warn}</p>`:`<span class="badge ok">Сверено по нескольким источникам</span>`}
+    <div class="src">Источники: ${h.src.map(s=>`<a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a>`).join(' · ')}</div>
+  </div>`;
+  const pv=dscroll.querySelector('.prev'), nx=dscroll.querySelector('.next');
+  if(pv){ pv.onclick=()=>{photoIdx=(photoIdx-1+h.photos.length)%h.photos.length;render()}; nx.onclick=()=>{photoIdx=(photoIdx+1)%h.photos.length;render()}; }
+  const bi=$('#bIn'); if(bi) bi.onclick=()=>api&&api.enter(h.id);
+  $('#bFly').onclick=()=>api&&api.focus(h.id);
+}
+function select(id,fromTour){
+  current=HALLS.find(h=>h.id===id); photoIdx=0; render(); dscroll.scrollTop=0; drawer.classList.add('open');
+  document.querySelectorAll('.rail button').forEach(b=>b.classList.toggle('on',b.id==='r-'+id));
+  document.querySelectorAll('.pin').forEach(b=>b.classList.toggle('on',b.id==='p-'+id));
+  const rb=$('#r-'+id); rb&&rb.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+  if(!fromTour) stopTour();
+  api&&api.focus(id);
+}
+$('#bClose').onclick=()=>{drawer.classList.remove('open'); current=null; document.querySelectorAll('.rail button,.pin').forEach(b=>b.classList.remove('on')); api&&api.highlight(null);};
+$('#bDossier').onclick=()=>$('#dossier').classList.add('open');
+$('#bDClose').onclick=()=>$('#dossier').classList.remove('open');
+let tourTimer=null;
+function stopTour(){ if(tourTimer){clearInterval(tourTimer);tourTimer=null;} $('#bTour').setAttribute('aria-pressed','false'); }
+$('#bTour').onclick=()=>{ if(tourTimer){stopTour();return;} $('#bTour').setAttribute('aria-pressed','true'); let i=current?HALLS.indexOf(current):-1;
+  const step=()=>{ i=(i+1)%HALLS.length; select(HALLS[i].id,true); }; step(); tourTimer=setInterval(step,9000); };
 
-let select = (id)=>{ current=ROOMS.find(r=>r.id===id); renderInfo(current); };
+/* ======================= 3D ======================= */
+(function(){
+if(!window.THREE||!THREE.OrbitControls){ $('#loadMsg').textContent='3D не загрузился. Фото и факты доступны в «Досье» и по кнопкам залов.'; return; }
+const canvas=$('#stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.62;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,1,6000);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true; controls.dampingFactor=.08; controls.maxPolarAngle=Math.PI*.495; controls.minDistance=8; controls.maxDistance=1400;
+const HOME={p:new THREE.Vector3(250,170,430),t:new THREE.Vector3(0,18,20)};
+if(innerWidth/innerHeight<1){ HOME.p.sub(HOME.t).multiplyScalar(1.9).add(HOME.t); }
+camera.position.copy(HOME.p); controls.target.copy(HOME.t);
 
-(function init3D(){
-  if(!window.THREE || !THREE.OrbitControls){ document.getElementById('loading').textContent='3D не загрузился: карточки залов доступны ниже.'; return; }
-  document.getElementById('loading').remove();
-  const box=document.getElementById('box'), canvas=document.getElementById('scene'), tip=document.getElementById('tip');
-  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputEncoding=THREE.sRGBEncoding;
-  const scene=new THREE.Scene();
-  const camera=new THREE.PerspectiveCamera(40,1,0.5,2000);
-  const HOME={pos:new THREE.Vector3(120,85,150),target:new THREE.Vector3(0,12,0)};
-  camera.position.copy(HOME.pos);
-  const controls=new THREE.OrbitControls(camera,canvas);
-  controls.target.copy(HOME.target); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.48;
-  controls.minDistance=30; controls.maxDistance=420; controls.autoRotate=true; controls.autoRotateSpeed=0.5;
+/* ---- sky + environment ---- */
+const sky=new THREE.Sky(); sky.scale.setScalar(5000); scene.add(sky);
+const sun=new THREE.Vector3(); const skyU=sky.material.uniforms;
+skyU.turbidity.value=6; skyU.rayleigh.value=1.4; skyU.mieCoefficient.value=.004; skyU.mieDirectionalG.value=.8;
+const pmrem=new THREE.PMREMGenerator(renderer); let envRT=null;
+const hemi=new THREE.HemisphereLight(0xdfe9ff,0xcbb894,.55); scene.add(hemi);
+const sunL=new THREE.DirectionalLight(0xfff2dc,2.4); sunL.castShadow=true; sunL.shadow.mapSize.set(4096,4096);
+Object.assign(sunL.shadow.camera,{left:-330,right:330,top:330,bottom:-330,near:10,far:1600}); sunL.shadow.bias=-0.0004; sunL.shadow.normalBias=0.6;
+scene.add(sunL); scene.add(sunL.target); sunL.target.position.set(0,0,60);
 
-  const hemi=new THREE.HemisphereLight(0xdfeaff,0xc9b48a,0.75); scene.add(hemi);
-  const sun=new THREE.DirectionalLight(0xfff1d8,1.05); sun.position.set(90,140,70); sun.castShadow=true;
-  sun.shadow.mapSize.set(2048,2048); Object.assign(sun.shadow.camera,{left:-160,right:160,top:160,bottom:-160,far:500}); scene.add(sun);
+/* ---- procedural textures ---- */
+function cvs(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); draw(x,w,h); const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=8; return t; }
+function star8(x,cx,cy,r,ri){ x.beginPath(); for(let i=0;i<16;i++){ const a=i/16*Math.PI*2-Math.PI/2, rr=i%2?ri:r; x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);} x.closePath(); }
+const texPaving=cvs(1024,1024,(x,w,h)=>{ x.fillStyle='#e9e3d8'; x.fillRect(0,0,w,h);
+  for(let i=0;i<3000;i++){ x.fillStyle=`rgba(${150+Math.random()*60|0},${140+Math.random()*50|0},${130+Math.random()*40|0},.06)`; x.fillRect(Math.random()*w,Math.random()*h,3,3); }
+  const g='#7e7873'; x.strokeStyle=g; x.lineWidth=14;
+  const s=w/2; for(let gx=0;gx<2;gx++)for(let gy=0;gy<2;gy++){ const cx=gx*s+s/2, cy=gy*s+s/2;
+    star8(x,cx,cy,s*.46,s*.34); x.stroke(); x.fillStyle='#d9d2c6'; star8(x,cx,cy,s*.22,s*.16); x.fill();
+    x.fillStyle='#8a837d'; x.beginPath(); x.arc(cx,cy,s*.05,0,7); x.fill(); }
+  x.lineWidth=10; x.beginPath(); for(let i=0;i<=2;i++){ x.moveTo(i*s,0); x.lineTo(i*s,h); x.moveTo(0,i*s); x.lineTo(w,i*s);} x.stroke(); });
+texPaving.wrapS=texPaving.wrapT=THREE.RepeatWrapping; texPaving.repeat.set(9,9);
+const texLattice=cvs(1024,512,(x,w,h)=>{ x.fillStyle='#f5f1e8'; x.fillRect(0,0,w,h);
+  x.strokeStyle='#cdbf9e'; x.lineWidth=3; const n=24, m=10;
+  for(let i=0;i<=n;i++)for(let j=0;j<=m;j++){ const cx=i*w/n, cy=j*h/m+((i%2)?h/m/2:0); x.beginPath(); x.ellipse(cx,cy,w/n*.55,h/m*.6,0,0,7); x.stroke(); star8(x,cx,cy,w/n*.22,w/n*.1); x.stroke(); }
+  x.fillStyle='#d9c79b'; x.fillRect(0,h-22,w,10); x.fillRect(0,h-50,w,4); });
+texLattice.wrapS=THREE.RepeatWrapping;
+const texStone=cvs(512,512,(x,w,h)=>{ x.fillStyle='#f3efe6'; x.fillRect(0,0,w,h); x.strokeStyle='rgba(120,105,80,.10)'; x.lineWidth=2;
+  for(let y=0;y<h;y+=32){ x.beginPath(); x.moveTo(0,y); x.lineTo(w,y); x.stroke(); for(let xx=(y/32%2)*48;xx<w;xx+=96){ x.beginPath(); x.moveTo(xx,y); x.lineTo(xx,y+32); x.stroke(); } }
+  for(let i=0;i<2500;i++){ x.fillStyle=`rgba(150,130,100,${Math.random()*.05})`; x.fillRect(Math.random()*w,Math.random()*h,2,2); } });
+texStone.wrapS=texStone.wrapT=THREE.RepeatWrapping; texStone.repeat.set(1,1);
+const texMosaic=cvs(512,64,(x,w,h)=>{ x.fillStyle='#2d2b4a'; x.fillRect(0,0,w,h); for(let i=0;i<w;i+=32){ x.fillStyle='#c9a24a'; star8(x,i+16,32,15,8); x.fill(); x.fillStyle='#6a3f7a'; star8(x,i+16,32,7,4); x.fill(); x.fillStyle='#3fa3a5'; x.fillRect(i,0,32,4); x.fillRect(i,60,32,4);} });
+texMosaic.wrapS=THREE.RepeatWrapping;
+const texCarved=cvs(512,512,(x,w,h)=>{ x.fillStyle='#f1e8d4'; x.fillRect(0,0,w,h); x.strokeStyle='#d6be86'; x.lineWidth=2; const s=64;
+  for(let i=0;i<=w;i+=s)for(let j=0;j<=h;j+=s){ star8(x,i,j,s*.48,s*.3); x.stroke(); star8(x,i+s/2,j+s/2,s*.2,s*.12); x.stroke(); } });
+texCarved.wrapS=texCarved.wrapT=THREE.RepeatWrapping;
+const texDomeIn=cvs(1024,512,(x,w,h)=>{ const g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,'#fff6dc'); g.addColorStop(1,'#e9d7a8'); x.fillStyle=g; x.fillRect(0,0,w,h);
+  x.strokeStyle='#b8913f'; x.lineWidth=2.5; for(let i=0;i<32;i++){ const cx=(i+.5)*w/32; for(let j=1;j<9;j++){ const cy=j*h/9; star8(x,cx,cy,w/32*.42*(1-j/12),w/32*.22*(1-j/12)); x.stroke(); } x.beginPath(); x.moveTo(i*w/32,0); x.lineTo(i*w/32,h); x.stroke(); }
+  for(let i=0;i<16;i++){ const cx=(i+.5)*w/16; x.fillStyle='#2d6fb4'; x.beginPath(); x.moveTo(cx-14,h-6); x.lineTo(cx-14,h-60); x.quadraticCurveTo(cx-14,h-86,cx,h-96); x.quadraticCurveTo(cx+14,h-86,cx+14,h-60); x.lineTo(cx+14,h-6); x.fill(); } });
+texDomeIn.wrapS=THREE.RepeatWrapping;
+const texFloor=cvs(1024,1024,(x,w,h)=>{ x.fillStyle='#f2ede4'; x.fillRect(0,0,w,h); x.strokeStyle='#b89a62'; x.lineWidth=6;
+  for(let r=60;r<500;r+=70){ x.beginPath(); x.arc(w/2,h/2,r,0,7); x.stroke(); } star8(x,w/2,h/2,300,200); x.stroke(); star8(x,w/2,h/2,150,100); x.fillStyle='#d8c08c'; x.fill(); });
+const texCarpet=(c1,c2)=>cvs(512,512,(x,w,h)=>{ x.fillStyle=c1; x.fillRect(0,0,w,h); x.strokeStyle=c2; x.lineWidth=5; x.strokeRect(20,20,w-40,h-40); x.strokeRect(40,40,w-80,h-80); star8(x,w/2,h/2,150,90); x.stroke(); star8(x,w/2,h/2,70,40); x.fillStyle=c2; x.fill(); });
 
-  // Materials
-  const M={
-    stone:new THREE.MeshStandardMaterial({color:0xf2efe8,roughness:.75}),
-    stone2:new THREE.MeshStandardMaterial({color:0xe3ddd0,roughness:.8}),
-    dome:new THREE.MeshStandardMaterial({color:0xf7f4ee,roughness:.35,metalness:.05}),
-    gold:new THREE.MeshStandardMaterial({color:0xe0b552,roughness:.35,metalness:.45}),
-    glass:new THREE.MeshStandardMaterial({color:0x2b4f86,roughness:.2,metalness:.4}),
-    water:new THREE.MeshStandardMaterial({color:0x3f8fc4,roughness:.1,metalness:.3,transparent:true,opacity:.9}),
-    grass:new THREE.MeshStandardMaterial({color:0x7fa35a,roughness:1}),
-    sand:new THREE.MeshStandardMaterial({color:0xe6d6b4,roughness:1}),
-    palm:new THREE.MeshStandardMaterial({color:0x4f7a3a,roughness:.9}),
-    trunk:new THREE.MeshStandardMaterial({color:0x8a6a45,roughness:1}),
-    floor:new THREE.MeshStandardMaterial({color:0xcbb68a,roughness:.6})
-  };
-  const pickables=[]; const groups={}; const roofs=[];
-  function grp(id){ const g=new THREE.Group(); g.userData.id=id; scene.add(g); groups[id]=g; return g; }
-  function mesh(geo,mat,g,x,y,z,opts={}){ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
-    if(g){ g.add(m); if(g.userData.id){ m.userData.id=g.userData.id; pickables.push(m);} } else scene.add(m);
-    if(opts.roof) roofs.push(m); return m; }
+/* ---- materials ---- */
+const M={
+  stone:new THREE.MeshStandardMaterial({color:0xf4f0e8,map:texStone,roughness:.72}),
+  stoneTrim:new THREE.MeshStandardMaterial({color:0xe6dccb,roughness:.6}),
+  dome:new THREE.MeshStandardMaterial({color:0xffffff,map:texLattice,bumpMap:texLattice,bumpScale:.6,roughness:.45}),
+  gold:new THREE.MeshStandardMaterial({color:0xd9ae4f,roughness:.28,metalness:1}),
+  glass:new THREE.MeshStandardMaterial({color:0x3d4a5c,roughness:.15,metalness:.6}),
+  recess:new THREE.MeshStandardMaterial({color:0x9d917c,roughness:.9}),
+  paving:new THREE.MeshStandardMaterial({map:texPaving,roughness:.38,metalness:.05}),
+  water:new THREE.MeshStandardMaterial({color:0x2f9ccc,roughness:.05,metalness:.1}),
+  mosaic:new THREE.MeshStandardMaterial({map:texMosaic,roughness:.35}),
+  grass:new THREE.MeshStandardMaterial({color:0x6f9a48,roughness:1}),
+  hedge:new THREE.MeshStandardMaterial({color:0x3f6a2e,roughness:1}),
+  flower:new THREE.MeshStandardMaterial({color:0xc2306f,roughness:1}),
+  sand:new THREE.MeshStandardMaterial({color:0xc9b48c,roughness:1}),
+  trunk:new THREE.MeshStandardMaterial({color:0x8d7357,roughness:1}),
+  frond:new THREE.MeshStandardMaterial({color:0x5c8a3c,roughness:.85,side:THREE.DoubleSide}),
+  lamp:new THREE.MeshStandardMaterial({color:0x2d2f36,roughness:.5,metalness:.6}),
+  lampGlow:new THREE.MeshStandardMaterial({color:0xfff4d8,emissive:0xffd48a,emissiveIntensity:0}),
+  winGlow:new THREE.MeshStandardMaterial({color:0x34404f,roughness:.2,metalness:.5,emissive:0xffc777,emissiveIntensity:0}),
+  sea:new THREE.MeshStandardMaterial({color:0x1d6f95,roughness:.12,metalness:.2}),
+  road:new THREE.MeshStandardMaterial({color:0x56595e,roughness:.95})
+};
 
-  // Ground
-  const ground=new THREE.Mesh(new THREE.CircleGeometry(400,64),M.sand); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
-  const sea=new THREE.Mesh(new THREE.RingGeometry(260,900,64),M.water); sea.rotation.x=-Math.PI/2; sea.position.y=0.05; scene.add(sea);
+/* ---- helpers ---- */
+const pickables=[]; const hallObj={}; HALLS.forEach(h=>hallObj[h.id]={ext:[],inner:null,c:new THREE.Vector3(),view:null,in:null});
+function add(mesh,parent=scene,id=null,shadow=true){ mesh.castShadow=shadow; mesh.receiveShadow=true; parent.add(mesh); if(id){ mesh.userData.id=id; pickables.push(mesh); hallObj[id].ext.push(mesh);} return mesh; }
+function box(w,h,d,mat,x,y,z,id,parent){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y+h/2,z); return add(m,parent,id); }
+function archPath(w,h,p){ const hs=h-w*.62, P=p||new THREE.Path(); P.moveTo(-w/2,0); P.lineTo(-w/2,hs);
+  P.bezierCurveTo(-w/2,hs+(h-hs)*.6,-w*.14,h-(h-hs)*.12,0,h); P.bezierCurveTo(w*.14,h-(h-hs)*.12,w/2,hs+(h-hs)*.6,w/2,hs); P.lineTo(w/2,0); P.lineTo(-w/2,0); return P; }
+function archWallGeo(W,H,w,h,d,oy=0){ const s=new THREE.Shape(); s.moveTo(-W/2,0); s.lineTo(W/2,0); s.lineTo(W/2,H); s.lineTo(-W/2,H); s.lineTo(-W/2,0);
+  const hole=new THREE.Path(); const hs=h-w*.62; hole.moveTo(-w/2,oy); hole.lineTo(-w/2,oy+hs); hole.bezierCurveTo(-w/2,oy+hs+(h-hs)*.6,-w*.14,oy+h-(h-hs)*.12,0,oy+h); hole.bezierCurveTo(w*.14,oy+h-(h-hs)*.12,w/2,oy+hs+(h-hs)*.6,w/2,oy+hs); hole.lineTo(w/2,oy); hole.lineTo(-w/2,oy);
+  s.holes.push(hole); const g=new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:false}); g.translate(0,0,-d/2); return g; }
+function archShapeGeo(w,h){ const s=new THREE.Shape(); archPath(w,h,s); return new THREE.ShapeGeometry(s); }
+function domeGeo(r,h,pointed=0.12){ const pts=[]; const N=28; for(let i=0;i<=N;i++){ const t=i/N, a=t*Math.PI/2; let x=Math.cos(a)*r, y=Math.sin(a)*h; x*= (1+.06*Math.sin(t*Math.PI)); if(t>.85) x*= 1-(t-.85)/.15*pointed; pts.push(new THREE.Vector2(Math.max(x,0.01),y)); } pts.push(new THREE.Vector2(0.01,h*1.02)); return new THREE.LatheGeometry(pts,64); }
+function finial(x,y,z,s,parent,id){ const g=new THREE.Group(); g.position.set(x,y,z);
+  [[.55,0],[.38,1.2],[.5,2.1],[.3,3]].forEach(([r,yy])=>{ const m=new THREE.Mesh(new THREE.SphereGeometry(r*s,16,12),M.gold); m.position.y=yy*s; add(m,g,null,true); });
+  const sp=new THREE.Mesh(new THREE.ConeGeometry(.18*s,2.6*s,10),M.gold); sp.position.y=4.4*s; add(sp,g); (parent||scene).add(g); if(id){g.children.forEach(c=>{c.userData.id=id;pickables.push(c);hallObj[id].ext.push(c);});} return g; }
+function domeUnit(x,z,yBase,r,opts={}){ // drum + dome + finial
+  const id=opts.id, dh=opts.drum??r*.45, parent=opts.parent||scene;
+  const drum=new THREE.Mesh(new THREE.CylinderGeometry(r*1.04,r*1.08,dh,48,1,true),M.stone); drum.position.set(x,yBase+dh/2,z); add(drum,parent,id);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(r*1.12,r*1.12,r*.06,48),M.stoneTrim); cap.position.set(x,yBase+dh,z); add(cap,parent,id);
+  const nw=opts.win??16; const wg=archShapeGeo(r*.18,dh*.62); const wins=new THREE.InstancedMesh(wg,M.winGlow,nw); const o=new THREE.Object3D();
+  for(let i=0;i<nw;i++){ const a=i/nw*Math.PI*2; o.position.set(x+Math.sin(a)*(r*1.045),yBase+dh*.18,z+Math.cos(a)*(r*1.045)); o.rotation.set(0,a,0); o.updateMatrix(); wins.setMatrixAt(i,o.matrix);} add(wins,parent,id,false);
+  const d=new THREE.Mesh(domeGeo(r,r*(opts.hr??1.15)),M.dome); d.position.set(x,yBase+dh+r*.03,z); add(d,parent,id);
+  finial(x,yBase+dh+r*(opts.hr??1.15)*1.02,z,Math.max(r/9,.55),parent,id);
+  return yBase+dh+r*(opts.hr??1.15);
+}
+const tmpO=new THREE.Object3D();
+function instLine(geo,mat,list,id,parent,shadow=true){ const im=new THREE.InstancedMesh(geo,mat,list.length); list.forEach((t,i)=>{ tmpO.position.set(t[0],t[1],t[2]); tmpO.rotation.set(0,t[3]||0,0); tmpO.scale.set(1,1,1); tmpO.updateMatrix(); im.setMatrixAt(i,tmpO.matrix); }); add(im,parent||scene,id,shadow); return im; }
+function pinnacles(x0,z0,x1,z1,y,step,id){ const L=Math.hypot(x1-x0,z1-z0), n=Math.max(2,Math.round(L/step)); const pts=[]; for(let i=0;i<=n;i++){ const t=i/n; pts.push([x0+(x1-x0)*t,y,z0+(z1-z0)*t]); }
+  const g=new THREE.CylinderGeometry(.35,.45,1.6,8); g.translate(0,.8,0); instLine(g,M.stone,pts,id,null,false);
+  const g2=new THREE.ConeGeometry(.42,1.1,8); g2.translate(0,2.15,0); instLine(g2,M.stoneTrim,pts,id,null,false); }
+function facadeWindows(cx,z,width,rows,yStart,ystep,spacing,face,id){ const list=[]; const n=Math.floor(width/spacing); for(let r=0;r<rows;r++)for(let i=0;i<n;i++){ list.push([cx-width/2+spacing*(i+.5),yStart+r*ystep,z,face]); } instLine(archShapeGeo(1.7,3.2),M.winGlow,list,id,null,false);
+  const fr=archShapeGeo(2.5,4); instLine(fr,M.stoneTrim,list.map(p=>[p[0],p[1]-.4,p[2]-(face===Math.PI?-0.05:0.05)*1,p[3]]),id,null,false); }
+function facadeWindowsX(x,cz,depth,rows,yStart,ystep,spacing,face,id){ const list=[]; const n=Math.floor(depth/spacing); for(let r=0;r<rows;r++)for(let i=0;i<n;i++) list.push([x,yStart+r*ystep,cz-depth/2+spacing*(i+.5),face]); instLine(archShapeGeo(1.7,3.2),M.winGlow,list,id,null,false); }
+function cornice(w,d,y,x,z,id){ box(w+1.2,.7,d+1.2,M.stoneTrim,x,y,z,id); }
 
-  function domeGeo(r){ return new THREE.SphereGeometry(r,48,24,0,Math.PI*2,0,Math.PI/2); }
-  function finial(g,x,y,z,s=1){ mesh(new THREE.CylinderGeometry(.25*s,.4*s,3*s,8),M.gold,g,x,y+1.5*s,z); mesh(new THREE.SphereGeometry(.7*s,12,8),M.gold,g,x,y+3.2*s,z); }
-  function arches(g,x,z,w,h,y,count,axis='x',face=1){
-    for(let i=0;i<count;i++){ const t=(i+.5)/count-.5; const geo=new THREE.BoxGeometry(axis==='x'?w/count*.55:.4,h,axis==='x'?.4:w/count*.55);
-      const m=mesh(geo,M.glass,g,axis==='x'?x+t*w:x+face*0.01,y,axis==='x'?z+face*0.01:z+t*w); m.castShadow=false; }
+/* ---- ground ---- */
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),M.sand); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+const sea=new THREE.Mesh(new THREE.PlaneGeometry(4000,2000),M.sea); sea.rotation.x=-Math.PI/2; sea.position.set(0,.05,-1250); scene.add(sea);
+const sea2=new THREE.Mesh(new THREE.PlaneGeometry(1400,4000),M.sea); sea2.rotation.x=-Math.PI/2; sea2.position.set(-1100,.05,0); scene.add(sea2);
+function plane(w,d,mat,x,y,z,id){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat); m.rotation.x=-Math.PI/2; m.position.set(x,y,z); m.receiveShadow=true; scene.add(m); if(id){m.userData.id=id;pickables.push(m);hallObj[id].ext.push(m);} return m; }
+const pav=plane(250,215,M.paving,0,.06,128,'court'); pav.material.map.repeat.set(10,9);
+plane(40,215,M.paving,-145,.05,128); plane(40,215,M.paving,145,.05,128);
+plane(1400,30,M.road,0,.04,640); plane(30,1000,M.road,300,.04,200);
+
+/* ---- MAIN PALACE ---- */
+const PZ=22; // front line of portal
+// plinth
+box(320,1.4,150,M.stoneTrim,0,0,-48);
+// central block (Great Hall)
+box(92,30,82,M.stone,0,1.4,-37,'great'); cornice(92,82,31,0,-37,'great');
+pinnacles(-46,4.5,46,4.5,32.1,5,'great');
+facadeWindows(0,4.6,88,1,20,4,6,0,'great');
+// Great Hall main dome: 37 m diameter
+const topMain=domeUnit(0,-40,32.1,18.5,{id:'great',drum:9,win:20,hr:1.18});
+// four corner domes of central block
+[[-38,-72],[38,-72],[-38,-2],[38,-2]].forEach(([x,z])=>{ box(12,4,12,M.stone,x,32.1,z,'great'); domeUnit(x,z,36.1,4.6,{id:'great',drum:2.6,win:8}); });
+// entrance block + front dome
+box(56,32,20,M.stone,0,1.4,13,'facade'); cornice(56,20,33.4,0,13,'facade');
+domeUnit(0,8,34.1,11,{id:'facade',drum:5,win:16,hr:1.1});
+// portal (pishtaq) with big pointed arch
+const portal=new THREE.Mesh(archWallGeo(36,38,17,27,4,0),M.stone); portal.position.set(0,1.4,PZ+2); add(portal,scene,'facade');
+const iwan=new THREE.Mesh(new THREE.CylinderGeometry(8.5,8.5,27,32,1,true,Math.PI/2,Math.PI),M.recess); iwan.position.set(0,1.4+13.5,PZ+.5); iwan.material.side=THREE.DoubleSide; add(iwan,scene,'facade');
+const door=new THREE.Mesh(archShapeGeo(6,11),new THREE.MeshStandardMaterial({color:0x5a3d22,roughness:.6})); door.position.set(0,1.4,PZ-8); add(door,scene,'facade');
+const arcTrim=new THREE.Mesh(archWallGeo(19,29,17,27,.6,0),M.stoneTrim); arcTrim.position.set(0,1.4,PZ+4.2); add(arcTrim,scene,'facade');
+box(37,1.2,5,M.stoneTrim,0,39.4,PZ+2,'facade'); pinnacles(-18,PZ+3.5,18,PZ+3.5,40.6,3,'facade');
+[[-19,PZ+2],[19,PZ+2]].forEach(([x,z])=>{ const tw=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.6,40,16),M.stoneTrim); tw.position.set(x,21,z+1); add(tw,scene,'facade'); finial(x,41,z+1,.5); });
+// wings (front range with ground arcade)
+function wing(side){ const s=side, cx=s*90, id='facade';
+  box(90,22,16,M.stone,cx,1.4,-3,id); cornice(90,16,23.4,cx,-3,id); pinnacles(cx-45,5.5,cx+45,5.5,24.1,4.5,id);
+  // ground floor arcade bays facing forecourt (+z)
+  const bays=[]; for(let i=0;i<15;i++) bays.push([cx-42+i*6,1.4,7,0]); instLine(archWallGeo(6,9,4.6,7.4,1.4),M.stone,bays,id);
+  box(90,.5,6,M.stone,cx,10.4,5.5,id);
+  facadeWindows(cx,5.08,88,3,11.6,3.9,6,0,id);
+  // end pavilions with dome
+  box(18,27,22,M.stone,s*144,1.4,-2,id); cornice(18,22,28.4,s*144,-2,id); domeUnit(s*144,-2,29.1,6,{id,drum:3,win:10});
+  facadeWindows(s*144,9.05,16,3,10,4.2,5.5,0,id);
+  // side connectors to forecourt arcades
+}
+wing(-1); wing(1);
+// back ranges & halls
+function hallBlock(id,x,z,w,d,h){ const g=box(w,h,d,M.stone,x,1.4,z,id); cornice(w,d,h+1.4,x,z,id); pinnacles(x-w/2,z+d/2,x+w/2,z+d/2,h+2.1,5,id); pinnacles(x-w/2,z-d/2,x+w/2,z-d/2,h+2.1,5,id); return g; }
+// left wing: Spirit (round w/ dome), Banquet, Barza
+{ const id='spirit'; const r=17; const cyl=new THREE.Mesh(new THREE.CylinderGeometry(r,r,22,48),M.stone); cyl.position.set(-72,12.4,-44); add(cyl,scene,id);
+  const cr=new THREE.Mesh(new THREE.CylinderGeometry(r+.8,r+.8,.8,48),M.stoneTrim); cr.position.set(-72,23.4,-44); add(cr,scene,id);
+  const wins=[]; for(let i=0;i<14;i++){ const a=i/14*Math.PI*2; wins.push([-72+Math.sin(a)*(r+.05),8,-44+Math.cos(a)*(r+.05),a]); } instLine(archShapeGeo(2.4,6),M.winGlow,wins,id,null,false);
+  domeUnit(-72,-44,23.8,11,{id,drum:4.5,win:14,hr:1.12}); }
+hallBlock('banquet',-116,-44,30,44,20); facadeWindowsX(-131.2,-44,40,2,7,6,6,-Math.PI/2,'banquet');
+hallBlock('barza',-94,-96,64,30,18); facadeWindows(-94,-111.2,60,2,6,5.5,6,Math.PI,'barza');
+box(30,18,30,M.stone,-60,1.4,-96);
+// right wing: Knowledge, Gifts
+hallBlock('knowledge',72,-44,34,40,20); [[-8],[8]].forEach(([dx])=>domeUnit(72+dx,-44,21.4,4.5,{id:'knowledge',drum:2.4,win:8}));
+hallBlock('gifts',116,-44,30,44,20); facadeWindowsX(131.2,-44,40,2,7,6,6,Math.PI/2,'gifts');
+box(90,18,30,M.stone,94,1.4,-96); facadeWindows(94,-111.2,86,2,6,5.5,6,Math.PI,null);
+// connectors between halls and front range
+box(12,16,20,M.stone,-52,1.4,-20); box(12,16,20,M.stone,52,1.4,-20); box(12,16,20,M.stone,-94,1.4,-20); box(12,16,20,M.stone,94,1.4,-20);
+box(20,16,20,M.stone,-72,1.4,-74); box(20,16,20,M.stone,72,1.4,-74);
+
+/* ---- FORECOURT: arcades + gate pavilions ---- */
+function arcade(x,face){ const id='court'; const z0=23, z1=228, n=Math.round((z1-z0)/6.5); const bays=[];
+  for(let i=0;i<n;i++) bays.push([x,1,z0+3.25+i*6.5,face]); instLine(archWallGeo(6.5,12,4.8,9.2,1.2),M.stone,bays,id);
+  box(9,1.2,z1-z0,M.stoneTrim,x+(face>0?-4:4),12,(z0+z1)/2,id); box(1.4,12,z1-z0,M.stone,x+(face>0?-8:8),1,(z0+z1)/2,id);
+  box(9,1,z1-z0,M.recess,x+(face>0?-4:4),.06,(z0+z1)/2); pinnacles(x,z0,x,z1,13.2,4,id);
+}
+arcade(-125,Math.PI/2); arcade(125,-Math.PI/2);
+function gatePavilion(x,z,id,s=1){ const W=22*s,H=19*s; const g=archWallGeo(W,H,11*s,14.5*s,1.6*s);
+  [[0,W/2-0.8*s,0],[Math.PI/2,0,W/2-0.8*s],[Math.PI,-(W/2-0.8*s),0],[-Math.PI/2,0,-(W/2-0.8*s)]].forEach(([ry,dz,dx])=>{ const m=new THREE.Mesh(g,M.stone); m.position.set(x+ (ry===Math.PI/2?W/2-0.8*s:ry===-Math.PI/2?-(W/2-0.8*s):0),0,z+(ry===0?W/2-0.8*s:ry===Math.PI?-(W/2-0.8*s):0)); m.rotation.y=ry; add(m,scene,id); });
+  box(W+1.5*s,1.4*s,W+1.5*s,M.stoneTrim,x,H,z,id); pinnacles(x-W/2,z+W/2,x+W/2,z+W/2,H+1.4*s,3*s,id); pinnacles(x-W/2,z-W/2,x+W/2,z-W/2,H+1.4*s,3*s,id);
+  box(W*.62,3*s,W*.62,M.stone,x,H+1.4*s,z,id);
+  domeUnit(x,z,H+4.4*s,7.2*s,{id,drum:2.8*s,win:12,hr:1.05}); }
+gatePavilion(-125,238,'court'); gatePavilion(125,238,'court'); gatePavilion(-125,14,'court',.8); gatePavilion(125,14,'court',.8);
+// star fountain (white marble, stepped) in forecourt
+function starPool(x,z,R,id,mosaic){ const sh=new THREE.Shape(); for(let i=0;i<16;i++){ const a=i/16*Math.PI*2, r=i%2?R*.72:R; i?sh.lineTo(Math.cos(a)*r,Math.sin(a)*r):sh.moveTo(Math.cos(a)*r,Math.sin(a)*r); }
+  const rim=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:1.1,bevelEnabled:false}),mosaic?M.mosaic:M.stone); rim.rotation.x=-Math.PI/2; rim.position.set(x,0,z); add(rim,scene,id);
+  const wsh=new THREE.Shape(); for(let i=0;i<16;i++){ const a=i/16*Math.PI*2, r=(i%2?R*.72:R)*.86; i?wsh.lineTo(Math.cos(a)*r,Math.sin(a)*r):wsh.moveTo(Math.cos(a)*r,Math.sin(a)*r); }
+  const w=new THREE.Mesh(new THREE.ShapeGeometry(wsh),M.water); w.rotation.x=-Math.PI/2; w.position.set(x,1.15,z); add(w,scene,id,false);
+  const jet=new THREE.Mesh(new THREE.CylinderGeometry(.15,.5,R*.35,8),new THREE.MeshStandardMaterial({color:0xe8f6ff,transparent:true,opacity:.75,roughness:.1})); jet.position.set(x,1.2+R*.17,z); scene.add(jet); jets.push(jet); }
+const jets=[];
+starPool(0,196,16,'court',false); box(40,.9,4,M.stone,0,0,170); box(40,.9,4,M.stone,0,0,222);
+// lamp posts (multi-lantern)
+const lampPts=[]; for(let z=30;z<=225;z+=19){ lampPts.push([-110,0,z],[110,0,z]); } [-60,60].forEach(x=>lampPts.push([x,0,170],[x,0,222]));
+instLine((()=>{const g=new THREE.CylinderGeometry(.18,.28,11,8); g.translate(0,5.5,0); return g;})(),M.lamp,lampPts,null,null,true);
+const lanterns=[]; lampPts.forEach(p=>{ [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dz])=>lanterns.push([p[0]+dx*.9,10.2,p[2]+dz*.9])); lanterns.push([p[0],11.4,p[2]]); });
+instLine(new THREE.SphereGeometry(.42,10,8),M.lampGlow,lanterns,null,null,false);
+
+/* ---- GARDENS ---- */
+plane(300,230,M.grass,0,.05,370,'gardens');
+plane(16,230,M.paving,0,.07,370); plane(300,10,M.paving,0,.07,262);
+function pool(x,z,w,d){ box(w+2,1.2,d+2,M.mosaic,x,0,z,'gardens'); const wm=new THREE.Mesh(new THREE.PlaneGeometry(w,d),M.water); wm.rotation.x=-Math.PI/2; wm.position.set(x,1.25,z); add(wm,scene,'gardens',false); }
+pool(-72,330,90,70); pool(72,330,90,70); pool(-72,430,90,46); pool(72,430,90,46);
+[[0,300],[0,360],[0,420]].forEach(([x,z])=>starPool(x,z,6,'gardens',true));
+// hedges & flowers
+for(let s of [-1,1]){ for(let k=0;k<4;k++){ box(4,1.4,60,M.hedge,s*(14+k*0),0,300+k*0,null); }
+  box(92,.6,3,M.flower,s*72,0,293); box(92,.6,3,M.flower,s*72,0,367); box(92,.6,3,M.flower,s*72,0,405); }
+// palms (instanced)
+const palmPts=[]; for(let z=272;z<=470;z+=11){ palmPts.push([-11,z],[11,z]); } for(let x=-140;x<=140;x+=14){ palmPts.push([x,252],[x,480]); }
+for(let z=40;z<=220;z+=22){ palmPts.push([-150,z],[150,z],[-165,z+11],[165,z+11]); }
+[[-200,-60],[-215,-20],[-200,20],[200,-60],[215,-20],[200,20],[-60,-140],[-20,-140],[20,-140],[60,-140],[-100,-140],[100,-140]].forEach(p=>palmPts.push(p));
+{ const n=palmPts.length; const trunkG=new THREE.CylinderGeometry(.35,.6,1,7); trunkG.translate(0,.5,0);
+  const trunks=new THREE.InstancedMesh(trunkG,M.trunk,n);
+  const fr=new THREE.PlaneGeometry(6.5,1.2,10,1); fr.rotateX(-Math.PI/2); fr.translate(3.25,0,0); { const p=fr.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setY(i,-0.07*x*x+0.25*x); p.setZ(i,p.getZ(i)*(1-x/7.5)); } fr.computeVertexNormals(); }
+  const FN=11, fronds=new THREE.InstancedMesh(fr,M.frond,n*FN); let k=0; const rnd=(a)=>Math.sin(a*12.9898)*43758.5453%1;
+  palmPts.forEach((p,i)=>{ const h=10+Math.abs(rnd(i+1))*5; tmpO.position.set(p[0],0,p[1]); tmpO.rotation.set(0,0,0); tmpO.scale.set(1,h,1); tmpO.updateMatrix(); trunks.setMatrixAt(i,tmpO.matrix);
+    for(let f=0;f<FN;f++){ tmpO.position.set(p[0],h,p[1]); tmpO.rotation.set(0,f/FN*Math.PI*2+i,0); tmpO.rotateZ(.35-(f%3)*.18); tmpO.scale.set(1,1,1); tmpO.updateMatrix(); fronds.setMatrixAt(k++,tmpO.matrix);} });
+  trunks.castShadow=fronds.castShadow=true; scene.add(trunks); scene.add(fronds); }
+
+/* ---- LIBRARY & VISITOR CENTRE (positions approximate) ---- */
+{ const id='library'; hallBlock(id,215,330,46,32,13); const bays=[]; for(let i=0;i<7;i++) bays.push([195+i*6.6,1.4,346.6,0]); instLine(archWallGeo(6.6,9,4.6,7,1.2),M.stone,bays,id); domeUnit(215,330,15.6,6,{id,drum:2.6,win:10}); }
+{ const id='visitor'; box(120,11,34,M.stone,0,0,600,id); cornice(120,34,11,0,600,id); pinnacles(-60,617,60,617,11.7,5,id);
+  const bays=[]; for(let i=0;i<17;i++) bays.push([-56+i*7,0,617.5,0]); instLine(archWallGeo(7,9,5,7.2,1.2),M.stone,bays,id);
+  gatePavilion(-75,560,'visitor',.7); gatePavilion(75,560,'visitor',.7); domeUnit(0,600,11.7,9,{id,drum:3.5,win:14}); }
+
+/* ---- PALACE IN MOTION projection ---- */
+const showC=document.createElement('canvas'); showC.width=1024; showC.height=512; const sx=showC.getContext('2d');
+const showTex=new THREE.CanvasTexture(showC); showTex.encoding=THREE.sRGBEncoding;
+const showMat=new THREE.MeshBasicMaterial({map:showTex,transparent:true,opacity:0,depthWrite:false});
+const showPlane=new THREE.Mesh(new THREE.PlaneGeometry(56,36),showMat); showPlane.position.set(0,19.5,PZ+4.6); scene.add(showPlane);
+showPlane.userData.id='show'; hallObj.show.ext.push(showPlane);
+function drawShow(t){ const w=1024,h=512; sx.fillStyle='#0b1022'; sx.fillRect(0,0,w,h);
+  const act=Math.floor(t/9)%3; const pal=[['#ff9f43','#b33b12','#ffe0a3'],['#2fb4ff','#4637c9','#bfe8ff'],['#7bf2c9','#e64fa8','#fff1b8']][act];
+  const g=sx.createRadialGradient(w/2,h*.6,20,w/2,h*.6,w*.6); g.addColorStop(0,pal[0]); g.addColorStop(1,pal[1]); sx.globalAlpha=.85; sx.fillStyle=g; sx.fillRect(0,0,w,h); sx.globalAlpha=1;
+  sx.strokeStyle=pal[2]; sx.lineWidth=3;
+  for(let k=0;k<7;k++){ const r=40+k*38+((t*30)%38); star8(sx,w/2,h*.55,r,r*.72); sx.globalAlpha=Math.max(0,1-k/7); sx.stroke(); } sx.globalAlpha=1;
+  for(let i=0;i<40;i++){ const px=(i*97+t*(i%2?40:-40))%w, py=(i*53%h)+Math.sin(t*1.5+i)*30; sx.fillStyle=`rgba(255,255,255,${.25+.25*Math.sin(t*3+i)})`; sx.beginPath(); sx.arc((px+w)%w,py,3+i%4,0,7); sx.fill(); }
+  sx.font='600 30px Manrope, sans-serif'; sx.textAlign='center'; sx.fillStyle='#fff'; sx.fillText(['Акт I · Прошлое','Акт II · Настоящее','Акт III · Будущее'][act],w/2,h-34); showTex.needsUpdate=true; }
+const projSpots=[];
+
+/* ---- INTERIORS ---- */
+const insideLights=new THREE.Group(); scene.add(insideLights);
+function room(id,{x,z,w,d,h,round=false,wallTex=texCarved,floorTex=texFloor,ceil=true}){
+  const g=new THREE.Group(); g.visible=false; scene.add(g); hallObj[id].inner=g;
+  const wallM=new THREE.MeshStandardMaterial({map:wallTex.clone(),roughness:.6,side:THREE.BackSide}); wallM.map.needsUpdate=true;
+  if(round){ wallM.map.repeat.set(6,1.2); const c=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,h,64,1,true),wallM); c.position.set(x,1.5+h/2,z); g.add(c); }
+  else { wallM.map.repeat.set(w/14,h/14); const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),[wallM,wallM,new THREE.MeshBasicMaterial({visible:false}),new THREE.MeshBasicMaterial({visible:false}),wallM,wallM]); b.position.set(x,1.5+h/2,z); g.add(b); }
+  const fm=new THREE.MeshStandardMaterial({map:floorTex,roughness:.25,metalness:.05}); const f=new THREE.Mesh(round?new THREE.CircleGeometry(w/2,64):new THREE.PlaneGeometry(w,d),fm); f.rotation.x=-Math.PI/2; f.position.set(x,1.55,z); f.receiveShadow=true; g.add(f);
+  if(ceil){ const cm=new THREE.MeshStandardMaterial({color:0xf2e6c8,roughness:.6,side:THREE.BackSide}); const c=new THREE.Mesh(round?new THREE.CircleGeometry(w/2,64):new THREE.PlaneGeometry(w,d),cm); c.rotation.x=-Math.PI/2; c.position.set(x,1.5+h,z); c.userData.ceiling=true; g.add(c); }
+  hallObj[id].c.set(x,1.5+h/2,z); return g; }
+function pLight(g,x,y,z,c=0xffe2b0,i=1.2,dist=120){ const l=new THREE.PointLight(c,i,dist,1.6); l.position.set(x,y,z); g.add(l); return l; }
+// Great Hall interior
+{ const id='great', X=0,Z=-40, S=60, H=31; const g=room(id,{x:X,z:Z,w:S,d:S,h:H,ceil:false});
+  const archM=new THREE.MeshStandardMaterial({map:texCarved,roughness:.5,side:THREE.DoubleSide});
+  const ag=archWallGeo(S,H,30,26,2.5); [[0,Z-S/2+1.3],[Math.PI,Z+S/2-1.3]].forEach(([r,z])=>{ const m=new THREE.Mesh(ag,archM); m.position.set(X,1.5,z); m.rotation.y=r; g.add(m); });
+  [[Math.PI/2,X-S/2+1.3],[-Math.PI/2,X+S/2-1.3]].forEach(([r,x])=>{ const m=new THREE.Mesh(ag,archM); m.position.set(x,1.5,Z); m.rotation.y=r; g.add(m); });
+  const doorM=new THREE.MeshStandardMaterial({color:0x6b4423,roughness:.5}); [[0,Z-S/2+2.6],[Math.PI,Z+S/2-2.6]].forEach(([r,z])=>{ const d=new THREE.Mesh(archShapeGeo(5,9),doorM); d.position.set(X,1.6,z); d.rotation.y=r; g.add(d); });
+  const cs=new THREE.Shape(); cs.moveTo(-S/2,-S/2); cs.lineTo(S/2,-S/2); cs.lineTo(S/2,S/2); cs.lineTo(-S/2,S/2); cs.lineTo(-S/2,-S/2); const ch=new THREE.Path(); ch.absarc(0,0,19.3,0,Math.PI*2,true); cs.holes.push(ch);
+  const ceilRing=new THREE.Mesh(new THREE.ShapeGeometry(cs,48),new THREE.MeshStandardMaterial({color:0xefe2c2,emissive:0xfff0cc,emissiveIntensity:.35,side:THREE.DoubleSide})); ceilRing.rotation.x=Math.PI/2; ceilRing.position.set(X,1.5+H,Z); g.add(ceilRing);
+  const drum=new THREE.Mesh(new THREE.CylinderGeometry(19.3,19.3,9,64,1,true),new THREE.MeshStandardMaterial({map:texDomeIn,side:THREE.BackSide,emissive:0x15304f,emissiveIntensity:.3})); drum.position.set(X,1.5+H+4.5,Z); g.add(drum);
+  const dIn=new THREE.Mesh(domeGeo(18.3,21.5,0.05),new THREE.MeshStandardMaterial({map:texDomeIn,side:THREE.BackSide,roughness:.5,metalness:.15})); dIn.position.set(X,1.5+H+9,Z); dIn.userData.ceiling=true; g.add(dIn);
+  const cols=[]; [-1,1].forEach(sx2=>[-1,1].forEach(sz=>cols.push([X+sx2*(S/2-6),1.5,Z+sz*(S/2-6)])));
+  instLine((()=>{const c=new THREE.CylinderGeometry(1.4,1.6,H-4,16); c.translate(0,(H-4)/2,0); return c;})(),new THREE.MeshStandardMaterial({color:0xf1e7d1,roughness:.4}),cols,null,g);
+  const lect=new THREE.MeshStandardMaterial({color:0x8a5a2b,emissive:0xffe7b0,emissiveIntensity:.0}); [[-10,-22],[10,-22]].forEach(([dx,dz])=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(1.6,3.6,1.2),lect); b.position.set(X+dx,3.3,Z+dz); g.add(b); });
+  pLight(g,X,26,Z,0xfff0d4,2.2,140); pLight(g,X,55,Z,0xdbe8ff,1.2,80); pLight(g,X-20,10,Z-20,0xffd9a0,.7,60); pLight(g,X+20,10,Z+20,0xffd9a0,.7,60);
+  hallObj[id].in={p:new THREE.Vector3(X+19,3.6,Z+21),t:new THREE.Vector3(X-6,25,Z-8)}; }
+// Spirit of Collaboration: round table + chandelier
+{ const id='spirit', X=-72,Z=-44, D=32, H=20; const g=room(id,{x:X,z:Z,w:D,d:D,h:H,round:true,floorTex:texCarpet('#20345e','#c9a24a'),ceil:false});
+  const dIn=new THREE.Mesh(domeGeo(16,14,0.04),new THREE.MeshStandardMaterial({map:texDomeIn,side:THREE.BackSide,roughness:.4,metalness:.2})); dIn.position.set(X,1.5+H,Z); dIn.userData.ceiling=true; g.add(dIn);
+  const table=new THREE.Mesh(new THREE.TorusGeometry(7.5,1.1,12,80),new THREE.MeshStandardMaterial({color:0x5b3a1e,roughness:.35})); table.rotation.x=Math.PI/2; table.scale.z=.25; table.position.set(X,2.6,Z); g.add(table);
+  const chairs=[]; for(let i=0;i<40;i++){ const a=i/40*Math.PI*2; chairs.push([X+Math.cos(a)*9.6,1.55,Z+Math.sin(a)*9.6,-a+Math.PI/2]); }
+  instLine((()=>{const c=new THREE.BoxGeometry(.9,1.8,.9); c.translate(0,.9,0); return c;})(),new THREE.MeshStandardMaterial({color:0x2e4f8c,roughness:.6}),chairs,null,g);
+  // chandelier: 3 tiers of instanced crystals
+  const crysG=new THREE.OctahedronGeometry(.13,0); const crysM=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffe9b8,emissiveIntensity:.55,roughness:.04,metalness:.9,envMapIntensity:1.5});
+  const tiers=[[6.8,22,16],[5,17.5,13],[3.2,13.5,10]]; let total=0; tiers.forEach(t=>total+=Math.round(t[0]*2*Math.PI*1.4)*t[2]);
+  const crys=new THREE.InstancedMesh(crysG,crysM,total); let k=0;
+  tiers.forEach(([r,y0,len],ti)=>{ const cols=Math.round(r*2*Math.PI*1.4); for(let c=0;c<cols;c++){ const a=c/cols*Math.PI*2; const L=len-(c%3); for(let j=0;j<L;j++){ const rr=r*(1-j/len*.2); tmpO.position.set(X+Math.cos(a)*rr,y0-j*.3-(c%2)*.15,Z+Math.sin(a)*rr); tmpO.rotation.set(0,a,0); tmpO.scale.set(1,1.7,1); tmpO.updateMatrix(); crys.setMatrixAt(k++,tmpO.matrix);} } }); crys.count=k;
+  g.add(crys); const rod=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,12,8),M.gold); rod.position.set(X,28,Z); g.add(rod);
+  [22,18,14].forEach((y,i)=>{ const ring=new THREE.Mesh(new THREE.TorusGeometry(tiers[i][0],.18,8,64),M.gold); ring.rotation.x=Math.PI/2; ring.position.set(X,y+.2,Z); g.add(ring); });
+  pLight(g,X,15,Z,0xfff0cf,2.4,90); pLight(g,X,30,Z,0xffe7b8,1,60);
+  hallObj[id].in={p:new THREE.Vector3(X+11,4,Z+11),t:new THREE.Vector3(X,14,Z)}; }
+// Banquet
+{ const id='banquet', X=-116,Z=-44,W=28,D=42,H=17; const g=room(id,{x:X,z:Z,w:W,d:D,h:H,floorTex:texCarpet('#6b1d2a','#c9a24a')});
+  const tableM=new THREE.MeshStandardMaterial({color:0xf7f3ea,roughness:.5}); const chairM=new THREE.MeshStandardMaterial({color:0xc9a24a,roughness:.4,metalness:.4});
+  [-8,0,8].forEach(dx=>{ const t=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.1,32),tableM); t.position.set(X+dx,2.1,Z); g.add(t);
+    const ch=[]; for(let i=0;i<14;i++){ ch.push([X+dx-1.9,1.55,Z-15+i*2.3,0],[X+dx+1.9,1.55,Z-15+i*2.3,0]); } instLine((()=>{const c=new THREE.BoxGeometry(.6,.5,.6); c.translate(0,.75,0); return c;})(),chairM,ch,null,g); instLine((()=>{const c=new THREE.BoxGeometry(.6,1.3,.12); c.translate(0,1.4,.3); return c;})(),chairM,ch.map(q=>[q[0]+(q[0]<X+dx?-.25:.25),q[1],q[2],q[0]<X+dx?Math.PI/2:-Math.PI/2]),null,g); });
+  [-12,0,12].forEach(dz=>{ const c=new THREE.Mesh(new THREE.SphereGeometry(1.6,16,12),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffe7b0,emissiveIntensity:1.2})); c.position.set(X,1.5+H-4,Z+dz); g.add(c); pLight(g,X,1.5+H-5,Z+dz,0xffe0aa,.9,40); });
+  hallObj[id].in={p:new THREE.Vector3(X+10,5,Z+19),t:new THREE.Vector3(X-2,6,Z-8)}; }
+// Barza (majlis)
+{ const id='barza', X=-94,Z=-96,W=60,D=26,H=15; const g=room(id,{x:X,z:Z,w:W,d:D,h:H,floorTex:texCarpet('#7a2f22','#d6b46a')});
+  const sofaM=new THREE.MeshStandardMaterial({color:0xe7dcc4,roughness:.8}); const s=[];
+  for(let i=0;i<26;i++) s.push([X-27+i*2.15,1.55,Z-11.6,0]); for(let i=0;i<10;i++){ s.push([X-28.6,1.55,Z-9+i*2.1,Math.PI/2],[X+28.6,1.55,Z-9+i*2.1,Math.PI/2]); }
+  instLine((()=>{const c=new THREE.BoxGeometry(2,1.3,1.6); c.translate(0,.65,0); return c;})(),sofaM,s,null,g);
+  const lt=[]; for(let i=0;i<8;i++) lt.push([X-21+i*6,1.55,Z-5,0]); instLine((()=>{const c=new THREE.BoxGeometry(2.6,.7,1.2); c.translate(0,.35,0); return c;})(),new THREE.MeshStandardMaterial({color:0x5b3a1e}),lt,null,g);
+  const screen=new THREE.Mesh(new THREE.PlaneGeometry(22,8),new THREE.MeshBasicMaterial({color:0x8fb7ff,toneMapped:false})); screen.position.set(X,8,Z+12.8); screen.rotation.y=Math.PI; g.add(screen);
+  pLight(g,X-15,12,Z,0xffe0aa,1,50); pLight(g,X+15,12,Z,0xffe0aa,1,50);
+  hallObj[id].in={p:new THREE.Vector3(X+6,5,Z+10),t:new THREE.Vector3(X-6,3,Z-10)}; }
+// House of Knowledge
+{ const id='knowledge', X=72,Z=-44,W=32,D=38,H=17; const g=room(id,{x:X,z:Z,w:W,d:D,h:H,floorTex:texCarpet('#1d2433','#a7834a')});
+  const vit=[]; for(let i=0;i<4;i++)for(let j=0;j<3;j++) vit.push([X-10+j*10,1.55,Z-13+i*8.5,0]);
+  instLine((()=>{const c=new THREE.BoxGeometry(5,1,2.2); c.translate(0,.5,0); return c;})(),new THREE.MeshStandardMaterial({color:0x3a2b1c}),vit,null,g);
+  instLine((()=>{const c=new THREE.BoxGeometry(4.8,1.4,2); c.translate(0,1.7,0); return c;})(),new THREE.MeshStandardMaterial({color:0xcfe6ff,transparent:true,opacity:.25,roughness:.05}),vit,null,g);
+  instLine((()=>{const c=new THREE.BoxGeometry(3.6,.08,1.4); c.translate(0,1.06,0); return c;})(),new THREE.MeshStandardMaterial({color:0xe9d9b0,emissive:0xffe2a0,emissiveIntensity:.5}),vit,null,g);
+  pLight(g,X,12,Z,0xffd7a0,1.1,60);
+  hallObj[id].in={p:new THREE.Vector3(X+10,5,Z+17),t:new THREE.Vector3(X-2,2,Z-6)}; }
+// Presidential Gifts
+{ const id='gifts', X=116,Z=-44,W=28,D=42,H=17; const g=room(id,{x:X,z:Z,w:W,d:D,h:H,floorTex:texCarpet('#141b2e','#8c7442'),wallTex:cvs(256,256,(x,w,h)=>{x.fillStyle='#1c2438';x.fillRect(0,0,w,h);x.strokeStyle='#3a4666';x.lineWidth=2;star8(x,w/2,h/2,100,60);x.stroke();})});
+  const v=[]; for(let i=0;i<5;i++){ v.push([X-9,1.55,Z-16+i*8,0],[X+9,1.55,Z-16+i*8,0]); } v.push([X,1.55,Z,0]);
+  instLine((()=>{const c=new THREE.BoxGeometry(3,2.2,3); c.translate(0,1.1,0); return c;})(),new THREE.MeshStandardMaterial({color:0x2a2f3c}),v,null,g);
+  instLine((()=>{const c=new THREE.BoxGeometry(2.8,2.6,2.8); c.translate(0,3.5,0); return c;})(),new THREE.MeshStandardMaterial({color:0xd8ecff,transparent:true,opacity:.2,roughness:.05,emissive:0x223355,emissiveIntensity:.3}),v,null,g);
+  instLine((()=>{const c=new THREE.OctahedronGeometry(.8,0); c.translate(0,3.4,0); return c;})(),new THREE.MeshStandardMaterial({color:0xd9ae4f,metalness:1,roughness:.25,emissive:0x664400,emissiveIntensity:.4}),v,null,g);
+  v.forEach(p=>pLight(g,p[0],8,p[2],0xffe2b0,.35,10));
+  hallObj[id].in={p:new THREE.Vector3(X+6,5,Z+20),t:new THREE.Vector3(X-3,3,Z-6)}; }
+// Library
+{ const id='library', X=215,Z=330,W=44,D=30,H=12; const g=room(id,{x:X,z:Z,w:W,d:D,h:H,floorTex:texCarpet('#2b3a2a','#b39256'),wallTex:cvs(256,256,(x,w,h)=>{x.fillStyle='#e8dcc2';x.fillRect(0,0,w,h);})});
+  const sh=[]; for(let i=0;i<6;i++) sh.push([X-15+i*6,1.55,Z-6,0],[X-15+i*6,1.55,Z+6,0]); for(let i=0;i<9;i++) sh.push([X-20+i*5,1.55,Z-14.2,0]);
+  const bookTex=cvs(128,256,(x,w,h)=>{ for(let r=0;r<6;r++){ x.fillStyle='#5a3a1e'; x.fillRect(0,r*h/6,w,6); for(let b=0;b<w;b+=6){ x.fillStyle=['#7b2e2e','#2e4f7b','#c9a24a','#2f5d3a','#e8dcc2','#4b2e5b'][(b*7+r*3)%6]; x.fillRect(b,r*h/6+6,5,h/6-8);} } });
+  instLine((()=>{const c=new THREE.BoxGeometry(4.8,5,1.2); c.translate(0,2.5,0); return c;})(),new THREE.MeshStandardMaterial({map:bookTex,roughness:.8}),sh,null,g);
+  pLight(g,X,10,Z,0xffe2b0,1,60);
+  hallObj[id].in={p:new THREE.Vector3(X+14,4,Z+13),t:new THREE.Vector3(X-6,3,Z-6)}; }
+
+/* ---- hall centres / camera views ---- */
+const VIEW={
+  great:{p:[85,95,95],t:[0,30,-40]}, spirit:{p:[-20,75,30],t:[-72,15,-44]}, banquet:{p:[-60,70,30],t:[-116,10,-44]},
+  barza:{p:[-40,75,-30],t:[-94,8,-96]}, knowledge:{p:[25,70,20],t:[72,10,-44]}, gifts:{p:[60,70,30],t:[116,10,-44]},
+  facade:{p:[60,35,150],t:[0,24,10]}, court:{p:[230,120,300],t:[0,5,130]}, gardens:{p:[200,130,560],t:[0,0,370]},
+  show:{p:[0,26,200],t:[0,22,20]}, library:{p:[290,70,420],t:[215,6,330]}, visitor:{p:[160,90,720],t:[0,5,590]}
+};
+const PIN={great:[0,78,-40],spirit:[-72,52,-44],banquet:[-116,28,-44],barza:[-94,26,-96],knowledge:[72,32,-44],gifts:[116,28,-44],facade:[0,44,26],court:[0,14,130],gardens:[0,16,370],show:[60,30,26],library:[215,30,330],visitor:[0,34,600]};
+
+/* ---- time of day ---- */
+let mode='day', night=0, targetNight=0;
+function setTime(m){ mode=m; ['tDay','tGold','tNight'].forEach(i=>$('#'+i).setAttribute('aria-pressed',String((i==='tDay'&&m==='day')||(i==='tGold'&&m==='gold')||(i==='tNight'&&m==='night'))));
+  const el = m==='day'?52:m==='gold'?6:-8, az=m==='day'?135:118; const phi=THREE.MathUtils.degToRad(90-el), th=THREE.MathUtils.degToRad(az);
+  sun.setFromSphericalCoords(1,phi,th); skyU.sunPosition.value.copy(sun);
+  sunL.position.copy(sun).multiplyScalar(700); sunL.position.y=Math.max(sunL.position.y,40);
+  sunL.color.set(m==='gold'?0xffb066:0xfff2dc); sunL.intensity= m==='day'?3.0: m==='gold'?2.2:0.0;
+  hemi.intensity = m==='night'?.08: m==='gold'?.18:.2; hemi.color.set(m==='night'?0x3a4f8a:0xdfe9ff);
+  renderer.toneMappingExposure = m==='night'?.6: m==='gold'?.5:.5;
+  skyU.rayleigh.value = m==='gold'?2.6:1.4; skyU.turbidity.value= m==='gold'?9:6;
+  sky.visible = m!=='night'; scene.background = m==='night'? new THREE.Color(0x070b18):null;
+  targetNight = m==='night'?1:0;
+  if(envRT) envRT.dispose(); const es=new THREE.Scene(); const s2=sky.clone(); s2.material=sky.material; s2.scale.setScalar(50); es.add(s2); envRT=pmrem.fromScene(es); scene.environment= m==='night'? null : envRT.texture;
+  if(m==='night'){ scene.environment=null; }
+}
+['day','gold','night'].forEach(m=>$('#t'+(m==='day'?'Day':m==='gold'?'Gold':'Night')).onclick=()=>setTime(m));
+const nightLights=new THREE.Group(); scene.add(nightLights);
+[[-40,40,90],[40,40,90],[0,15,150],[-125,20,130],[125,20,130]].forEach(([x,y,z])=>{ const s=new THREE.SpotLight(0xffd7a0,0,420,Math.PI/5,.6,1.2); s.position.set(x,y,z); s.target.position.set(x*0.4,22,-10); nightLights.add(s); nightLights.add(s.target); projSpots.push(s); });
+
+/* ---- interaction ---- */
+const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hover=null, hl=null;
+const hlMat=new Map();
+function highlight(id){ if(hl===id) return; if(hl){ hallObj[hl].ext.forEach(m=>{ if(m.userData._m){ m.material=m.userData._m; delete m.userData._m; } }); }
+  hl=id; if(id){ hallObj[id].ext.forEach(m=>{ if(!m.material||!m.material.emissive||m===showPlane||m.material===M.winGlow||m.material===M.lampGlow) return; m.userData._m=m.material; let c=hlMat.get(m.material); if(!c){ c=m.material.clone(); c.emissive=new THREE.Color(0xc99a2e); c.emissiveIntensity=.28; hlMat.set(m.material,c);} m.material=c; }); } }
+function pick(e){ const r=canvas.getBoundingClientRect(); mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1); ray.setFromCamera(mouse,camera);
+  const hits=ray.intersectObjects(pickables.filter(o=>o.visible),false); return hits.length?hits[0].object.userData.id:null; }
+canvas.addEventListener('pointermove',e=>{ if(insideId) return; const id=pick(e); canvas.classList.toggle('hot',!!id); if(id!==hover){ hover=id; highlight(hover||(current&&current.id)||null); } });
+let down=null; canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}; userMoved();});
+canvas.addEventListener('pointerup',e=>{ if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)<6&&!insideId){ const id=pick(e); if(id) select(id); } down=null; });
+canvas.addEventListener('wheel',userMoved,{passive:true});
+
+/* ---- camera flights ---- */
+let fly=null, idleT=0, autoSpin=true;
+function userMoved(){ fly=null; idleT=0; autoSpin=false; }
+function flyTo(p,t,dur=1.6){ fly={p0:camera.position.clone(),t0:controls.target.clone(),p1:p.clone(),t1:t.clone(),k:0,dur,st:performance.now()}; }
+let cut=false, insideId=null;
+function setCut(on){ cut=on; $('#bCut').setAttribute('aria-pressed',String(on)); applyVisibility(); }
+function applyVisibility(){ const show=new Set(); if(cut) HALLS.forEach(h=>{ if(hallObj[h.id].inner) show.add(h.id); }); if(current&&hallObj[current.id].inner) show.add(current.id); if(insideId) show.add(insideId);
+  HALLS.forEach(h=>{ const o=hallObj[h.id]; if(!o.inner) return; const on=show.has(h.id); o.inner.visible=on;
+    o.inner.children.forEach(c=>{ if(c.userData.ceiling) c.visible = insideId===h.id; });
+    o.ext.forEach(m=>{ m.visible = !on || (insideId===null && false); }); });
+  if(insideId){ // hide everything outside to stay in the room
+    scene.children.forEach(c=>{ if(c.userData._hid===undefined) c.userData._hid=c.visible; });
   }
-  function interiorFloor(g,x,z,w,d){ const f=mesh(new THREE.BoxGeometry(w-1,.3,d-1),M.floor,g,x,.6,z); f.visible=false; f.userData.interior=true; return f; }
+}
+function focus(id){ exitInside(true); const v=VIEW[id]; if(!v) return;
+  if(id==='show') setTime('night'); applyVisibility(); highlight(id);
+  const vp=new THREE.Vector3(...v.p), vt=new THREE.Vector3(...v.t); if(innerWidth/innerHeight<1){ vp.sub(vt).multiplyScalar(1.7).add(vt); vt.y-=12; } flyTo(vp,vt); autoSpin=false; }
+const hiddenForInside=[];
+function enter(id){ const o=hallObj[id]; if(!o.in) return; insideId=id; applyVisibility();
+  scene.traverse(obj=>{ if(obj.isMesh||obj.isInstancedMesh){ let p=obj, inRoom=false; while(p){ if(p===o.inner){inRoom=true;break;} p=p.parent; } if(!inRoom && obj.visible && obj!==ground){ obj.visible=false; hiddenForInside.push(obj);} } });
+  sky.visible=false; scene.background=new THREE.Color(0x0b0f1a); ground.visible=false;
+  $('#insideBar').hidden=false; $('#insideName').textContent='Внутри: '+HALLS.find(h=>h.id===id).name;
+  controls.minDistance=1; controls.maxPolarAngle=Math.PI*.92; flyTo(o.in.p,o.in.t,1.8); highlight(null); pinsEl.style.display='none'; }
+function exitInside(silent){ if(!insideId) return; const id=insideId; insideId=null; hiddenForInside.forEach(o=>o.visible=true); hiddenForInside.length=0; ground.visible=true; setTime(mode);
+  $('#insideBar').hidden=true; controls.minDistance=8; controls.maxPolarAngle=Math.PI*.495; if(camera.position.y<3) camera.position.y=40; pinsEl.style.display=''; applyVisibility(); if(!silent){ const v=VIEW[id]; flyTo(new THREE.Vector3(...v.p),new THREE.Vector3(...v.t)); } }
+$('#bExit').onclick=()=>exitInside(false);
+$('#bCut').onclick=()=>setCut(!cut);
+$('#bHome').onclick=()=>{ exitInside(true); flyTo(HOME.p,HOME.t); };
+api={focus,enter,highlight:(id)=>{highlight(id);applyVisibility();}};
 
-  // GREAT HALL (center)
-  { const g=grp('great');
-    mesh(new THREE.BoxGeometry(56,4,56),M.stone2,g,0,2,0);
-    mesh(new THREE.BoxGeometry(44,18,44),M.stone,g,0,13,0,{roof:false});
-    arches(g,0,22.2,40,9,12,7,'x',1);
-    mesh(new THREE.CylinderGeometry(19,19,8,48),M.stone,g,0,26,0,{roof:true});
-    for(let i=0;i<24;i++){ const a=i/24*Math.PI*2; const w=mesh(new THREE.BoxGeometry(1.2,4,.4),M.glass,g,Math.cos(a)*19.05,26,Math.sin(a)*19.05,{roof:true}); w.rotation.y=-a+Math.PI/2; }
-    const d=mesh(domeGeo(18.5),M.dome,g,0,30,0,{roof:true}); d.scale.y=1.25;
-    mesh(new THREE.TorusGeometry(18.6,.5,8,64),M.gold,g,0,30,0,{roof:true}).rotation.x=Math.PI/2;
-    finial(g,0,53,0,2);
-    [[-22,-22],[22,-22],[-22,22],[22,22]].forEach(([x,z])=>{ mesh(new THREE.CylinderGeometry(4,4,6,24),M.stone,g,x,25,z,{roof:true}); const s=mesh(domeGeo(4),M.dome,g,x,28,z,{roof:true}); finial(g,x,32,z,.7); roofs.push(s); });
-    // portico
-    mesh(new THREE.BoxGeometry(24,16,8),M.stone,g,0,12,28);
-    for(let i=0;i<6;i++) mesh(new THREE.CylinderGeometry(.9,.9,14,16),M.stone2,g,-10+i*4,11,32.6);
-    arches(g,0,32.1,20,8,11,3,'x',1);
-    interiorFloor(g,0,0,44,44);
-    // chandelier visible in section mode
-    const ch=mesh(new THREE.ConeGeometry(4,7,24,1,true),M.gold,g,0,22,0); ch.visible=false; ch.userData.interior=true;
-  }
-  // WEST WING
-  { const g=grp('spirit'); const x=-58,z=-8;
-    mesh(new THREE.BoxGeometry(30,16,30),M.stone,g,x,8+4,z); mesh(new THREE.BoxGeometry(34,4,34),M.stone2,g,x,2,z);
-    mesh(new THREE.CylinderGeometry(10,10,5,40),M.stone,g,x,22.5,z,{roof:true});
-    const d=mesh(domeGeo(9.6),M.dome,g,x,25,z,{roof:true}); d.scale.y=1.15; finial(g,x,36,z,1.2);
-    mesh(new THREE.TorusGeometry(9.7,.35,8,48),M.gold,g,x,25,z,{roof:true}).rotation.x=Math.PI/2;
-    arches(g,x,z+15.1,26,7,12,5,'x',1);
-    interiorFloor(g,x,z,30,30);
-    const t=mesh(new THREE.CylinderGeometry(7,7,1.2,40),M.trunk,g,x,2,z); t.visible=false; t.userData.interior=true;
-    const ch=mesh(new THREE.SphereGeometry(3.2,16,12),M.gold,g,x,12,z); ch.visible=false; ch.userData.interior=true;
-  }
-  { const g=grp('banquet'); const x=-58,z=24;
-    mesh(new THREE.BoxGeometry(30,4,26),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,13,24),M.stone,g,x,10.5,z);
-    mesh(new THREE.BoxGeometry(29,1.2,25),M.gold,g,x,17.6,z,{roof:true});
-    arches(g,x,z+12.1,24,7,10,6,'x',1); interiorFloor(g,x,z,28,24);
-    for(let i=0;i<3;i++){ const t=mesh(new THREE.BoxGeometry(20,1,2),M.trunk,g,x,1.6,z-7+i*7); t.visible=false; t.userData.interior=true; }
-  }
-  { const g=grp('barza'); const x=-58,z=-38;
-    mesh(new THREE.BoxGeometry(30,4,24),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,12,22),M.stone,g,x,10,z);
-    mesh(new THREE.CylinderGeometry(6,6,3,32),M.stone,g,x,17.5,z,{roof:true}); const d=mesh(domeGeo(5.8),M.dome,g,x,19,z,{roof:true}); finial(g,x,24.8,z,.8);
-    arches(g,x+14.1,z,18,6,9,4,'z',1); interiorFloor(g,x,z,28,22);
-  }
-  // connectors
-  { const lnk=new THREE.Group(); scene.add(lnk);
-    [[ -35,0],[35,0]].forEach(([x])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(14,10,16),M.stone); m.position.set(x,7,0); m.castShadow=m.receiveShadow=true; lnk.add(m); });
-    [[-58,-23],[-58,8]].forEach(([x,z])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(18,8,6),M.stone2); m.position.set(x,6,z); m.castShadow=true; lnk.add(m); });
-    [[58,-23],[58,8]].forEach(([x,z])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(18,8,6),M.stone2); m.position.set(x,6,z); m.castShadow=true; lnk.add(m); });
-  }
-  // EAST WING
-  { const g=grp('knowledge'); const x=58,z=-12;
-    mesh(new THREE.BoxGeometry(32,4,30),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(30,14,28),M.stone,g,x,11,z);
-    [[-7],[7]].forEach(([dx])=>{ mesh(new THREE.CylinderGeometry(5,5,3,28),M.stone,g,x+dx,19.5,z,{roof:true}); mesh(domeGeo(4.8),M.dome,g,x+dx,21,z,{roof:true}); finial(g,x+dx,25.8,z,.7); });
-    arches(g,x,z+14.1,26,7,10,5,'x',1); interiorFloor(g,x,z,30,28);
-    for(let i=0;i<4;i++){ const s=mesh(new THREE.BoxGeometry(2,6,20),M.trunk,g,x-9+i*6,4,z); s.visible=false; s.userData.interior=true; }
-  }
-  { const g=grp('gifts'); const x=58,z=22;
-    mesh(new THREE.BoxGeometry(30,4,26),M.stone2,g,x,2,z); mesh(new THREE.BoxGeometry(28,12,24),M.stone,g,x,10,z);
-    mesh(new THREE.BoxGeometry(29,1.2,25),M.gold,g,x,16.6,z,{roof:true});
-    arches(g,x,z+12.1,24,6,9,5,'x',1); interiorFloor(g,x,z,28,24);
-    for(let i=0;i<6;i++){ const c=mesh(new THREE.BoxGeometry(2.5,3,2.5),M.glass,g,x-10+i*4,2.5,z); c.visible=false; c.userData.interior=true; }
-  }
-  { const g=grp('library'); const x=105,z=60;
-    mesh(new THREE.BoxGeometry(26,3,20),M.stone2,g,x,1.5,z); mesh(new THREE.BoxGeometry(24,10,18),M.stone,g,x,8,z);
-    mesh(new THREE.BoxGeometry(25,1,19),M.gold,g,x,13.5,z,{roof:true}); arches(g,x,z+9.1,20,6,7,5,'x',1); interiorFloor(g,x,z,24,18);
-  }
-  { const g=grp('visitor'); const x=-100,z=110;
-    mesh(new THREE.BoxGeometry(30,3,16),M.stone2,g,x,1.5,z); mesh(new THREE.BoxGeometry(28,8,14),M.stone,g,x,7,z);
-    mesh(new THREE.CylinderGeometry(5,5,2,24),M.stone,g,x,12,z,{roof:true}); mesh(domeGeo(4.8),M.dome,g,x,13,z,{roof:true});
-    arches(g,x,z+7.1,24,5,6,6,'x',1);
-  }
-  // GARDENS + fountains
-  let fountainJets=[];
-  { const g=grp('gardens');
-    mesh(new THREE.BoxGeometry(150,.4,90),M.grass,g,0,.2,90);
-    mesh(new THREE.BoxGeometry(14,.6,90),M.stone2,g,0,.4,90);
-    mesh(new THREE.BoxGeometry(8,.7,84),M.water,g,0,.5,90);
-    [[-40,70],[40,70],[-40,112],[40,112]].forEach(([x,z])=>{ mesh(new THREE.CylinderGeometry(7,7,1,32),M.stone2,g,x,.6,z); mesh(new THREE.CylinderGeometry(6,6,1.1,32),M.water,g,x,.7,z);
-      const j=mesh(new THREE.CylinderGeometry(.2,.5,4,8),M.water,g,x,3,z); fountainJets.push(j); });
-    for(let i=0;i<14;i++){ [-1,1].forEach(s=>{ const x=s*(16+((i%2)*6)), z=50+i*6.5;
-      mesh(new THREE.CylinderGeometry(.35,.5,7,6),M.trunk,g,x,3.5,z);
-      for(let k=0;k<6;k++){ const leaf=mesh(new THREE.ConeGeometry(.8,5,4),M.palm,g,x,7.3,z); leaf.rotation.z=Math.PI/2.6; leaf.rotation.y=k/6*Math.PI*2; leaf.position.x+=Math.cos(k/6*Math.PI*2)*1.6; leaf.position.z-=Math.sin(k/6*Math.PI*2)*1.6; leaf.castShadow=false; }
-    }); }
-  }
-  // PALACE IN MOTION projection surface (front façade)
-  const showTex=document.createElement('canvas'); showTex.width=512; showTex.height=256; const sctx=showTex.getContext('2d');
-  const tex=new THREE.CanvasTexture(showTex);
-  const showMat=new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false});
-  { const g=grp('show');
-    const plane=new THREE.Mesh(new THREE.PlaneGeometry(26,17),showMat); plane.position.set(0,11,33.8); g.add(plane); plane.userData.id='show'; pickables.push(plane);
-    const proj=mesh(new THREE.BoxGeometry(3,2,3),M.glass,g,0,1,150); }
-  const domeGlow=new THREE.PointLight(0xffc36b,0,160); domeGlow.position.set(0,40,40); scene.add(domeGlow);
+/* ---- pins projection ---- */
+const pv=new THREE.Vector3();
+function updatePins(){ const w=innerWidth,h=innerHeight; HALLS.forEach(hh=>{ const p=PIN[hh.id]; pv.set(p[0],p[1],p[2]).project(camera); const vis=pv.z<1&&pv.x>-1.1&&pv.x<1.1&&pv.y>-1.1&&pv.y<1.1;
+  hh.pin.classList.toggle('hide',!vis); if(vis){ hh.pin.style.left=((pv.x+1)/2*w)+'px'; hh.pin.style.top=((1-pv.y)/2*h)+'px'; } }); }
 
-  // ---- interaction
-  const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let hoverId=null;
-  const emissiveFor=(id,on)=>{ const g=groups[id]; if(!g) return; g.traverse(o=>{ if(o.isMesh && o.material && o.material.emissive){ if(!o.userData.mat){ o.userData.mat=o.material; } o.material = on? o.userData.hl || (o.userData.hl=Object.assign(o.userData.mat.clone(),{})) : o.userData.mat; if(on){ o.material.emissive=new THREE.Color(id===current?.id?0x6b4a00:0x2a3f66); o.material.emissiveIntensity=.55; } } }); };
-  function setHighlight(){ Object.keys(groups).forEach(id=>emissiveFor(id, id===hoverId || id===current?.id)); }
-  function pick(ev){ const r=canvas.getBoundingClientRect(); mouse.x=((ev.clientX-r.left)/r.width)*2-1; mouse.y=-((ev.clientY-r.top)/r.height)*2+1;
-    ray.setFromCamera(mouse,camera); const hit=ray.intersectObjects(pickables.filter(p=>p.visible && (p.userData.id!=='show' || showMat.opacity>0.3)),false)[0]; return hit?hit.object.userData.id:null; }
-  canvas.addEventListener('pointermove',ev=>{ const id=pick(ev); if(id!==hoverId){ hoverId=id; setHighlight(); }
-    canvas.classList.toggle('hovering',!!id); if(id){ const r=canvas.getBoundingClientRect(); tip.hidden=false; tip.textContent=ROOMS.find(x=>x.id===id).name; tip.style.left=(ev.clientX-r.left)+'px'; tip.style.top=(ev.clientY-r.top)+'px'; } else tip.hidden=true; });
-  canvas.addEventListener('pointerleave',()=>{ hoverId=null; tip.hidden=true; setHighlight(); });
-  let down=null; canvas.addEventListener('pointerdown',e=>down={x:e.clientX,y:e.clientY});
-  canvas.addEventListener('pointerup',e=>{ if(!down) return; if(Math.hypot(e.clientX-down.x,e.clientY-down.y)<6){ const id=pick(e); if(id) select(id,true); } down=null; });
-
-  // camera fly
-  let fly=null;
-  function centerOf(id){ const b=new THREE.Box3().setFromObject(groups[id]); const c=b.getCenter(new THREE.Vector3()); const s=b.getSize(new THREE.Vector3()).length(); return {c,s}; }
-  function flyTo(pos,target){ fly={p0:camera.position.clone(),t0:controls.target.clone(),p1:pos,t1:target,t:0}; }
-  select=(id,move)=>{ current=ROOMS.find(r=>r.id===id); renderInfo(current); setHighlight();
-    document.querySelectorAll('.roomlist button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
-    if(move){ if(id==='show'){ setNight(true); flyTo(new THREE.Vector3(0,28,170),new THREE.Vector3(0,17,30)); return; }
-      const {c,s}=centerOf(id); const dir=new THREE.Vector3(c.x>5?.6:c.x<-5?-.6:.3,.75,1).normalize(); flyTo(c.clone().add(dir.multiplyScalar(Math.max(s*1.6,70))),c); }
-    btnSpin.setAttribute('aria-pressed','false'); controls.autoRotate=false; };
-
-  // HUD
-  const btnNight=document.getElementById('btnNight'), btnRoof=document.getElementById('btnRoof'), btnSpin=document.getElementById('btnSpin');
-  let night=false;
-  function setNight(on){ night=on; btnNight.setAttribute('aria-pressed',on); hemi.intensity=on?.18:.75; sun.intensity=on?.08:1.05; domeGlow.intensity=on?1.4:0;
-    hemi.color.set(on?0x5068a8:0xdfeaff); box.classList.toggle('night',on); }
-  btnNight.onclick=()=>setNight(!night);
-  btnRoof.onclick=()=>{ const on=btnRoof.getAttribute('aria-pressed')!=='true'; btnRoof.setAttribute('aria-pressed',on);
-    roofs.forEach(m=>m.visible=!on); scene.traverse(o=>{ if(o.userData.interior) o.visible=on; }); };
-  btnSpin.onclick=()=>{ const on=btnSpin.getAttribute('aria-pressed')!=='true'; btnSpin.setAttribute('aria-pressed',on); controls.autoRotate=on; };
-  document.getElementById('btnReset').onclick=()=>{ current=null; renderInfo(null); setHighlight(); document.querySelectorAll('.roomlist button').forEach(b=>b.classList.remove('active')); flyTo(HOME.pos.clone(),HOME.target.clone()); };
-  controls.addEventListener('start',()=>{ fly=null; });
-
-  function drawShow(t){ const w=showTex.width,h=showTex.height; sctx.clearRect(0,0,w,h);
-    const act=Math.floor(t/8)%3; const pal=[["#ffb347","#c2410c"],["#38bdf8","#6366f1"],["#a7f3d0","#f472b6"]][act];
-    const gr=sctx.createLinearGradient(0,0,w,h); gr.addColorStop(0,pal[0]); gr.addColorStop(1,pal[1]); sctx.fillStyle=gr; sctx.globalAlpha=.55; sctx.fillRect(0,0,w,h); sctx.globalAlpha=1;
-    for(let i=0;i<14;i++){ const x=(i/14*w + t*30*(i%2?1:-1))%w; sctx.fillStyle='rgba(255,255,255,.35)'; sctx.beginPath(); sctx.arc((x+w)%w,h/2+Math.sin(t*1.3+i)*h*.32,6+Math.sin(t+i)*4,0,7); sctx.fill(); }
-    sctx.strokeStyle='rgba(255,240,200,.6)'; sctx.lineWidth=2; for(let k=0;k<8;k++){ const cx=w/2,cy=h/2; sctx.beginPath(); const r=30+k*12+Math.sin(t*2)*4; for(let a=0;a<=8;a++){ const ang=a/8*Math.PI*2+t*.3; const px=cx+Math.cos(ang)*r, py=cy+Math.sin(ang)*r*.6; a?sctx.lineTo(px,py):sctx.moveTo(px,py);} sctx.stroke(); }
-    sctx.fillStyle='#fff'; sctx.font='600 22px Manrope, sans-serif'; sctx.textAlign='center'; sctx.fillText(['Акт I · Прошлое','Акт II · Настоящее','Акт III · Будущее'][act],w/2,h-18); tex.needsUpdate=true; }
-
-  function resize(){ const w=box.clientWidth,h=box.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
-  new ResizeObserver(resize).observe(box); resize();
-  const clock=new THREE.Clock(); const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; if(reduce){ controls.autoRotate=false; btnSpin.setAttribute('aria-pressed','false'); }
-  (function loop(){ const t=clock.getElapsedTime();
-    if(fly){ fly.t=Math.min(1,fly.t+0.025); const e=1-Math.pow(1-fly.t,3); camera.position.lerpVectors(fly.p0,fly.p1,e); controls.target.lerpVectors(fly.t0,fly.t1,e); if(fly.t>=1) fly=null; }
-    showMat.opacity += ((night?0.95:0)-showMat.opacity)*0.06; if(showMat.opacity>0.02) drawShow(t);
-    fountainJets.forEach((j,i)=>{ j.scale.y=1+Math.sin(t*3+i)*.25; });
-    controls.update(); renderer.render(scene,camera); requestAnimationFrame(loop); })();
+/* ---- loop ---- */
+function resize(){ renderer.setSize(innerWidth,innerHeight,false); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+scene.traverse(o=>{ const ms=o.material? (Array.isArray(o.material)?o.material:[o.material]):[]; ms.forEach(m=>{ if(m.isMeshStandardMaterial) m.envMapIntensity = m.metalness>.5?1:.35; }); });
+setTime('day');
+const clock=new THREE.Clock(); const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function loop(){ const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+  if(fly){ fly.k=Math.min(1,(performance.now()-fly.st)/1000/fly.dur); const e=fly.k<.5?4*fly.k**3:1-Math.pow(-2*fly.k+2,3)/2; camera.position.lerpVectors(fly.p0,fly.p1,e); controls.target.lerpVectors(fly.t0,fly.t1,e); if(fly.k>=1) fly=null; }
+  else if(autoSpin && !reduce && !insideId){ const a=.0008; const off=camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0,1,0),a); camera.position.copy(controls.target).add(off); }
+  night += (targetNight-night)*Math.min(1,dt*3);
+  M.winGlow.emissiveIntensity=night*1.6; M.lampGlow.emissiveIntensity=night*3+0.05; projSpots.forEach(s=>s.intensity=night*1.1);
+  showMat.opacity = night*.82; if(night>.02) drawShow(t);
+  jets.forEach((j,i)=>{ j.scale.y=1+Math.sin(t*3+i)*.18; });
+  controls.update(); renderer.render(scene,camera); updatePins(); requestAnimationFrame(loop); }
+loop();
+setTimeout(()=>{ $('#loader').classList.add('gone'); },300);
 })();
 </script>
