@@ -482,8 +482,16 @@ const manager = new THREE.LoadingManager();
 const bar = $('#loadBar'), msg = $('#loadMsg');
 manager.onProgress = (url, a, b) => { };
 const loader = new GLTFLoader(manager);
-function loadGLB(url, label) {
-  return new Promise((res, rej) => loader.load(url, res, e => { if (e.total) { bar.style.width = (e.loaded / e.total * 100).toFixed(0) + '%'; msg.textContent = `${label}: ${(e.loaded / 1048576).toFixed(1)} из ${(e.total / 1048576).toFixed(1)} МБ`; } }, rej));
+async function fetchModel(url, label) {
+  // models are shipped as base64 text (the artifact host serves .txt, not .glb)
+  const res = await fetch(url); if (!res.ok) throw new Error(url + ' ' + res.status);
+  const total = +res.headers.get('content-length') || 0; const reader = res.body.getReader(); const chunks = []; let got = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length;
+    if (label) { const pct = total ? got / total : Math.min(.95, got / 6.5e6); bar.style.width = (pct * 100).toFixed(0) + '%'; msg.textContent = `${label}: ${(got / 1048576 * .75).toFixed(1)} МБ`; } }
+  const txt = new TextDecoder().decode(chunks.length === 1 ? chunks[0] : (() => { const all = new Uint8Array(got); let o = 0; chunks.forEach(c => { all.set(c, o); o += c.length; }); return all; })());
+  const bin = atob(txt.trim()); const buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  if (label) msg.textContent = 'Подготовка сцены…';
+  return new Promise((ok, err) => loader.parse(buf.buffer, '', ok, err));
 }
 
 const HALL_IDS = ['great', 'facade', 'spirit', 'banquet', 'barza', 'knowledge', 'gifts', 'court', 'gardens', 'library', 'visitor'];
@@ -535,7 +543,7 @@ function prepare(root, isInterior) {
 }
 
 async function init() {
-  const gltf = await loadGLB('models/exterior.glb', 'Модель дворца');
+  const gltf = await fetchModel('models/exterior.glb.txt', 'Модель дворца');
   exterior = gltf.scene; scene.add(exterior); prepare(exterior);
   exterior.traverse(o => {
     const mm = /^H_(\w+)$/.exec(o.name); if (mm) extRoots[mm[1]] = o;
@@ -563,7 +571,7 @@ async function init() {
 function ensureInteriors() {
   if (interiors) return Promise.resolve(interiors);
   if (interiorsLoading) return interiorsLoading;
-  interiorsLoading = new Promise((res, rej) => loader.load('models/interiors.glb', g => {
+  interiorsLoading = fetchModel('models/interiors.glb.txt').then(g => new Promise((res) => {
     interiors = g.scene; prepare(interiors, true); interiors.visible = true; scene.add(interiors);
     interiors.traverse(o => { const mm = /^I_([a-z]+)$/.exec(o.name); if (mm) { inRoots[mm[1]] = o; o.visible = false; } });
     // instanced props (chairs, crystal strands) are exported at the root: re-home them into their hall by bounds
@@ -573,7 +581,7 @@ function ensureInteriors() {
       if (o.isInstancedMesh) { bb.copy(o.boundingBox).applyMatrix4(o.matrixWorld); } else bb.setFromObject(o);
       const c = bb.getCenter(new THREE.Vector3()); const hit = boxes.find(([k, b]) => b.containsPoint(c)); if (hit) inRoots[hit[0]].attach(o); });
     buildInteriorLights(); applyVisibility(); res(interiors);
-  }, undefined, rej));
+  }));
   return interiorsLoading;
 }
 
