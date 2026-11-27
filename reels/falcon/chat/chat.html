@@ -3,8 +3,9 @@
 <style>html,body{margin:0;background:#000}canvas{display:block;width:405px;height:720px}</style></head>
 <body><canvas id="c" width="1080" height="1920"></canvas>
 <script>
-// «Билет с неба» — insert: Anya texts Aziz from the queue, gets the reply. 6.6 s, drawn in code (exact text, exact avatar).
-const W = 1080, H = 1920, FPS = 30, DUR = 6.6;
+// «Билет с неба» — insert: Anya texts Aziz on an iPhone (modern design: Dynamic Island, titanium frame, iOS keyboard).
+// Drawn in code: exact text, exact avatar. 7.6 s.
+const W = 1080, H = 1920, FPS = 30, DUR = 7.6;
 const cv = document.getElementById('c'), g = cv.getContext('2d');
 const F = '"Inter Display", Inter, sans-serif', EMO = '"Noto Color Emoji"';
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v)), prog = (t, a, b) => clamp((t - a) / (b - a));
@@ -12,86 +13,152 @@ const eOut = x => 1 - Math.pow(1 - x, 3), eIO = x => x < .5 ? 4 * x * x * x : 1 
 const back = (x, s = 1.6) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
 const img = src => { const i = new Image(); i.src = src; return i; };
 const BG = img('bg.png'), AV = img('avatar.jpg');
+const seg = s => [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(s)].map(x => x.segment);
 
-const MSG_OUT = 'Азиз, здравствуйте! Нужна помощь 🙏 Нужны билеты на смотровую The View at the Palm. Тут огромная очередь, я не успеваю 😩';
-const MSG_IN = 'Всё хорошо, не переживайте 😊 Билет скоро будет у вас!';
-const T_IN = .35, T_TYPE0 = .55, T_TYPE1 = 3.0, T_SEND = 3.1, T_TYPING = 3.55, T_REPLY = 4.7;
+// ---- script (timings in seconds)
+const M1 = 'Здравствуйте, Азиз!';
+const M2 = 'Нужна помощь 🙏 Нужны билеты на смотровую The View at the Palm. Тут огромная очередь, я не успеваю 😩';
+const R1 = 'Здравствуйте!';
+const R2 = 'Хорошо, скоро отправлю вам билеты 😊';
+const T = { in: .35, t1a: .45, t1b: 1.35, s1: 1.5, t2a: 1.75, t2b: 4.15, s2: 4.3, kbOut: 4.45, typA: 4.7, r1: 5.6, r2: 6.25 };
+const G1 = seg(M1), G2 = seg(M2);
+window.TYPE_TIMES = [...G1.map((c, i) => T.t1a + (T.t1b - T.t1a) * (i + 1) / G1.length), ...G2.map((c, i) => T.t2a + (T.t2b - T.t2a) * (i + 1) / G2.length)];
 
 function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
-function font(sz, w = 600) { g.font = `${w} ${sz}px ${F}, ${EMO}`; }
-function wrap(s, maxW, sz, w = 600) {
+function font(sz, w = 500) { g.font = `${w} ${sz}px ${F}, ${EMO}`; }
+function wrap(s, maxW, sz, w = 500) {
   font(sz, w); const words = s.split(' '), lines = []; let cur = '';
   for (const wd of words) { const t2 = cur ? cur + ' ' + wd : wd; if (g.measureText(t2).width > maxW && cur) { lines.push(cur); cur = wd; } else cur = t2; }
-  if (cur) lines.push(cur); return lines;
+  lines.push(cur); return lines;
 }
-const graphemes = s => [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(s)].map(x => x.segment);
-const OUT_G = graphemes(MSG_OUT);
+// typed text at time t (linear, constant speed — no acceleration)
+function typed(t) {
+  if (t < T.t1a) return ''; if (t < T.s1) return G1.slice(0, Math.floor(G1.length * prog(t, T.t1a, T.t1b))).join('');
+  if (t < T.t2a) return ''; if (t < T.s2) return G2.slice(0, Math.floor(G2.length * prog(t, T.t2a, T.t2b))).join('');
+  return '';
+}
+// last typed character (to light the key)
+function lastKey(t) { const s = seg(typed(t)); if (!s.length) return null; const tt = window.TYPE_TIMES; let k = -1; for (let i = 0; i < tt.length; i++) if (tt[i] <= t) k = i; if (k < 0 || t - tt[k] > .09) return null; return s[s.length - 1]; }
 
-function bubble(x, y, maxW, text, mine, time, p) {
-  const sz = 46, lh = 60, lines = wrap(text, maxW - 70, sz);
-  font(sz); const tw = Math.max(...lines.map(l => g.measureText(l).width));
-  const bw = Math.max(tw + 70, 260), bh = lines.length * lh + 76, bx = mine ? x + maxW - bw : x;
-  g.save(); const s = back(clamp(p), 1.8), ox = mine ? bx + bw : bx; g.translate(ox, y + bh); g.scale(s, s); g.translate(-ox, -(y + bh)); g.globalAlpha = clamp(p * 3);
-  g.shadowColor = 'rgba(0,0,0,.12)'; g.shadowBlur = 10; g.shadowOffsetY = 3;
-  rr(bx, y, bw, bh, 34); g.fillStyle = mine ? '#dcf8c6' : '#ffffff'; g.fill(); g.shadowColor = 'transparent';
-  font(sz); g.fillStyle = '#111b21'; g.textBaseline = 'middle'; g.textAlign = 'left';
-  lines.forEach((l, i) => g.fillText(l, bx + 34, y + 34 + lh / 2 + i * lh - 6));
-  font(26, 500); g.fillStyle = '#667781'; g.textAlign = 'right'; g.fillText(time + (mine ? '  ✓✓' : ''), bx + bw - 26, y + bh - 26);
-  if (mine) { g.fillStyle = '#53bdeb'; font(26, 700); g.fillText('✓✓', bx + bw - 26, y + bh - 26); }
-  g.restore(); return bh;
+// ---- message bubble (iOS WhatsApp style)
+const BS = 44, BL = 58;
+function bubbleSize(text, maxW) { const lines = wrap(text, maxW - 70, BS); font(BS); const tw = Math.max(...lines.map(l => g.measureText(l).width)); return { lines, w: Math.max(tw + 70, 250), h: lines.length * BL + 74 }; }
+function drawBubble(x, y, maxW, text, mine, time, p) {
+  const { lines, w, h } = bubbleSize(text, maxW); const bx = mine ? x + maxW - w : x;
+  g.save(); const s = back(clamp(p), 1.8), ox = mine ? bx + w : bx; g.translate(ox, y + h); g.scale(s, s); g.translate(-ox, -(y + h)); g.globalAlpha = clamp(p * 3);
+  g.shadowColor = 'rgba(0,0,0,.10)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+  rr(bx, y, w, h, 34); g.fillStyle = mine ? '#d9fdd3' : '#ffffff'; g.fill(); g.shadowColor = 'transparent';
+  font(BS); g.fillStyle = '#111b21'; g.textBaseline = 'middle'; g.textAlign = 'left';
+  lines.forEach((l, i) => g.fillText(l, bx + 32, y + 30 + BL / 2 + i * BL - 4));
+  font(25, 500); g.fillStyle = '#667781'; g.textAlign = 'right'; g.fillText(time, bx + w - (mine ? 70 : 26), y + h - 24);
+  if (mine) { g.fillStyle = '#53bdeb'; font(25, 700); g.fillText('✓✓', bx + w - 24, y + h - 24); }
+  g.restore(); return h;
+}
+
+// ---- iOS keyboard (Russian layout)
+const ROWS = ['йцукенгшщзхъ', 'фывапролджэ', 'ячсмитьбю'];
+function keyboard(x, y, w, h, lit) {
+  g.fillStyle = '#d1d4d9'; g.fillRect(x, y, w, h);
+  const kh = 96, gap = 12, top = y + 22;
+  ROWS.forEach((row, r) => {
+    const n = row.length, kw = (w - 24 - gap * 11) / 12, rowW = n * kw + (n - 1) * gap; let kx = x + (w - rowW) / 2; const ky = top + r * (kh + 22);
+    [...row].forEach(ch => {
+      const on = lit && lit.toLowerCase() === ch;
+      g.save(); g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowOffsetY = 2; g.shadowBlur = 0; rr(kx, ky, kw, kh, 12); g.fillStyle = on ? '#b7bcc4' : '#fff'; g.fill(); g.restore();
+      font(40, 400); g.fillStyle = '#000'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, kx + kw / 2, ky + kh / 2 + 2);
+      if (on) { g.save(); rr(kx - 14, ky - 120, kw + 28, 130, 18); g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 10; g.fill(); g.restore(); font(64, 400); g.fillStyle = '#000'; g.fillText(ch, kx + kw / 2, ky - 58); }
+      kx += kw + gap;
+    });
+  });
+  // bottom row: 123 · emoji · space · return
+  const by = top + 3 * (kh + 22), sx = x + 12;
+  [[sx, 150, '123'], [sx + 162, 110, '🙂']].forEach(([kx, kw, l]) => { rr(kx, by, kw, kh, 12); g.fillStyle = '#abb0ba'; g.fill(); font(34, 500); g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText(l, kx + kw / 2, by + kh / 2 + 2); });
+  const spaceOn = lit === ' '; rr(sx + 284, by, w - 24 - 284 - 172, kh, 12); g.fillStyle = spaceOn ? '#b7bcc4' : '#fff'; g.fill(); font(34, 500); g.fillStyle = '#000'; g.textAlign = 'center'; g.fillText('пробел', sx + 284 + (w - 24 - 284 - 172) / 2, by + kh / 2 + 2);
+  rr(x + w - 12 - 160, by, 160, kh, 12); g.fillStyle = '#abb0ba'; g.fill(); g.fillStyle = '#000'; g.fillText('ввод', x + w - 12 - 80, by + kh / 2 + 2);
+}
+
+// ---- status bar icons
+function statusBar(x, y, w) {
+  font(42, 700); g.fillStyle = '#000'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('14:32', x + 96, y + 64);
+  const rx = x + w - 84; // battery
+  rr(rx - 70, y + 46, 62, 32, 9); g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.4)'; g.stroke(); rr(rx - 66, y + 50, 44, 24, 6); g.fillStyle = '#000'; g.fill(); rr(rx - 5, y + 55, 5, 14, 2); g.fillStyle = 'rgba(0,0,0,.4)'; g.fill();
+  // wifi
+  g.save(); g.translate(rx - 104, y + 76); g.strokeStyle = '#000'; g.lineWidth = 6; g.lineCap = 'round'; [26, 17, 8].forEach(r => { g.beginPath(); g.arc(0, 0, r, -Math.PI * .78, -Math.PI * .22); g.stroke(); }); g.restore();
+  // signal
+  for (let k = 0; k < 4; k++) { g.fillStyle = '#000'; rr(rx - 176 + k * 12, y + 76 - (10 + k * 7), 9, 10 + k * 7, 2); g.fill(); }
 }
 
 function frame(t) {
   g.setTransform(1, 0, 0, 1, 0, 0);
-  // background: the same queue, out of focus
   g.save(); g.filter = 'blur(18px) brightness(.7)'; g.drawImage(BG, -40, -60, W + 80, H + 120); g.restore();
-  const z = 1 + .03 * eIO(prog(t, T_IN, DUR));                      // slow push-in on the phone
-  const py = (1 - eOut(prog(t, 0, T_IN))) * 1500;
-  g.save(); g.translate(W / 2, H / 2 + 130 + py); g.scale(z, z); g.rotate(-.015);
-  const PW = 880, PH = 1600, x0 = -PW / 2, y0 = -PH / 2;
-  // phone body
-  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 70; g.shadowOffsetY = 30; rr(x0, y0, PW, PH, 110); g.fillStyle = '#0b0d12'; g.fill(); g.restore();
-  rr(x0, y0, PW, PH, 110); g.lineWidth = 6; g.strokeStyle = '#3a3f4d'; g.stroke();
-  g.save(); rr(x0 + 26, y0 + 26, PW - 52, PH - 52, 88); g.clip();
-  const sx = x0 + 26, sy = y0 + 26, SW = PW - 52, SH = PH - 52;
-  // chat wallpaper
+  const z = 1 + .025 * eIO(prog(t, T.in, DUR)), py = (1 - eOut(prog(t, 0, T.in))) * 1600;
+  g.save(); g.translate(W / 2, H / 2 + 95 + py); g.scale(z * .93, z * .93); g.rotate(-.012);
+  const PW = 860, PH = 1760, x0 = -PW / 2, y0 = -PH / 2, R = 132;
+  // side buttons (action + volume on the left, power on the right)
+  g.fillStyle = '#8d877d'; [[-PW / 2 - 7, -560, 70], [-PW / 2 - 7, -440, 120], [-PW / 2 - 7, -290, 120]].forEach(([bx, by, bh]) => { rr(bx, by, 10, bh, 5); g.fill(); }); rr(PW / 2 - 3, -420, 10, 180, 5); g.fill();
+  // titanium frame
+  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 70; g.shadowOffsetY = 30; rr(x0, y0, PW, PH, R);
+  const tg = g.createLinearGradient(x0, 0, x0 + PW, 0); tg.addColorStop(0, '#6f6a63'); tg.addColorStop(.08, '#c9c3b8'); tg.addColorStop(.5, '#a7a197'); tg.addColorStop(.92, '#cfc9be'); tg.addColorStop(1, '#6b665f');
+  g.fillStyle = tg; g.fill(); g.restore();
+  rr(x0 + 8, y0 + 8, PW - 16, PH - 16, R - 8); g.fillStyle = '#050505'; g.fill();          // thin black bezel
+  const sx = x0 + 22, sy = y0 + 22, SW = PW - 44, SH = PH - 44;
+  g.save(); rr(sx, sy, SW, SH, R - 22); g.clip();
+  // wallpaper + doodles
   g.fillStyle = '#efeae2'; g.fillRect(sx, sy, SW, SH);
-  g.globalAlpha = .06; for (let i = 0; i < 40; i++) { g.font = `46px ${EMO}`; g.fillText(['🌴', '☀️', '✈️', '🏙️'][i % 4], sx + (i * 197) % SW, sy + 260 + (i * 331) % (SH - 300)); } g.globalAlpha = 1;
-  // status bar
-  font(30, 700); g.fillStyle = '#fff'; g.fillStyle = '#075e54'; g.fillRect(sx, sy, SW, 250);
-  g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillText('14:32', sx + 70, sy + 50);
-  g.textAlign = 'right'; g.fillText('5G  ▮▮▮  82%', sx + SW - 70, sy + 50);
-  // header with the avatar
-  const ax = sx + 136, ay = sy + 172, ar = 66;
+  g.globalAlpha = .06; for (let i = 0; i < 36; i++) { g.font = `44px ${EMO}`; g.fillText(['🌴', '☀️', '✈️', '🏙️'][i % 4], sx + (i * 197) % SW, sy + 300 + (i * 331) % (SH - 300)); } g.globalAlpha = 1;
+  // header (iOS light style) under the status bar
+  g.fillStyle = 'rgba(246,246,246,.97)'; g.fillRect(sx, sy, SW, 280); g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(sx, sy + 280, SW, 2);
+  statusBar(sx, sy, SW);
+  const ax = sx + 150, ay = sy + 200, ar = 56;
+  font(56, 400); g.fillStyle = '#007aff'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText('‹', sx + 34, ay - 4);
   g.save(); g.beginPath(); g.arc(ax, ay, ar, 0, Math.PI * 2); g.clip(); g.drawImage(AV, ax - ar, ay - ar, ar * 2, ar * 2); g.restore();
-  g.fillStyle = '#fff'; g.textAlign = 'left'; font(30, 700); g.fillText('‹', sx + 36, ay);
-  font(46, 700); g.fillText('Азиз | Гид в Эмиратах', ax + ar + 28, ay - 24);
-  const typing = t > T_TYPING && t < T_REPLY;
-  font(32, 500); g.fillStyle = typing ? '#b7f5c4' : '#d7e9e6'; g.fillText(typing ? 'печатает…' : 'в сети', ax + ar + 28, ay + 30);
-  // messages
-  let y = sy + 300; const mx = sx + 36, mw = SW - 72;
-  const day = 'Сегодня'; font(28, 600); const dw = g.measureText(day).width + 50; rr(sx + SW / 2 - dw / 2, y, dw, 54, 27); g.fillStyle = '#e1f2fb'; g.fill(); g.fillStyle = '#54656f'; g.textAlign = 'center'; g.fillText(day, sx + SW / 2, y + 28); y += 90;
-  if (t >= T_SEND) y += bubble(mx, y, mw, MSG_OUT, true, '14:32', prog(t, T_SEND, T_SEND + .28)) + 30;
-  if (typing) { const bw = 170, bh = 92; rr(mx, y, bw, bh, 34); g.fillStyle = '#fff'; g.fill();
-    for (let k = 0; k < 3; k++) { const j = Math.sin(t * 13 - k * .9) * 8; g.beginPath(); g.arc(mx + 52 + k * 34, y + 46 + j, 10, 0, Math.PI * 2); g.fillStyle = '#8696a0'; g.fill(); } }
-  if (t >= T_REPLY) bubble(mx, y, mw, MSG_IN, false, '14:33', prog(t, T_REPLY, T_REPLY + .3));
-  // input bar with live typing
-  const iy = sy + SH - 170; g.fillStyle = '#f0f2f5'; g.fillRect(sx, iy - 20, SW, 190);
-  rr(sx + 30, iy, SW - 200, 110, 55); g.fillStyle = '#fff'; g.fill();
-  const n = t < T_SEND ? Math.floor(OUT_G.length * eIO(prog(t, T_TYPE0, T_TYPE1))) : 0;
-  let shown = OUT_G.slice(0, n).join('');
-  font(38, 500); g.textAlign = 'left'; g.textBaseline = 'middle';
-  if (!shown && t < T_TYPE0) { g.fillStyle = '#8696a0'; g.fillText('Сообщение', sx + 80, iy + 55); }
-  else { // keep the tail of the text visible in one line
-    let s = shown; while (g.measureText(s).width > SW - 330 && s.length) s = s.slice(1);
-    g.fillStyle = '#111b21'; g.fillText(s, sx + 80, iy + 55);
-    if (t < T_SEND && Math.floor(t * 3) % 2 === 0) { const cx = sx + 84 + g.measureText(s).width; g.fillRect(cx, iy + 30, 4, 50); }
-  }
-  // send button (pressed on T_SEND)
-  const press = t > T_SEND - .12 && t < T_SEND + .12 ? .85 : 1;
-  g.save(); g.translate(sx + SW - 95, iy + 55); g.scale(press, press); g.beginPath(); g.arc(0, 0, 58, 0, Math.PI * 2); g.fillStyle = '#00a884'; g.fill();
-  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(-20, -24); g.lineTo(28, 0); g.lineTo(-20, 24); g.lineTo(-12, 0); g.closePath(); g.fill(); g.restore();
+  const typingAziz = t > T.typA && t < T.r1;
+  font(42, 700); g.fillStyle = '#000'; g.fillText('Азиз | Гид в Эмиратах', ax + ar + 26, ay - 22);
+  font(32, 500); g.fillStyle = typingAziz ? '#00a884' : '#8e8e93'; g.fillText(typingAziz ? 'печатает…' : 'в сети', ax + ar + 26, ay + 26);
+  // keyboard (slides away after the second message is sent)
+  const kbH = 560, kbY = sy + SH - kbH + eIO(prog(t, T.kbOut, T.kbOut + .3)) * kbH;
+  // input bar, growing with the typed lines
+  const txt = typed(t), maxInW = SW - 300, lines = txt ? wrap(txt, maxInW, 40) : [''];
+  const shownLines = lines.slice(-5), inH = Math.max(96, shownLines.length * 52 + 44), barH = inH + 40, barY = Math.min(kbY, sy + SH - 70) - barH;
+  // messages: bottom-aligned stack above the input bar
+  const mx = sx + 32, mw = SW - 64, items = [];
+  if (t >= T.s1) items.push([M1, true, '14:32', prog(t, T.s1, T.s1 + .25)]);
+  if (t >= T.s2) items.push([M2, true, '14:32', prog(t, T.s2, T.s2 + .25)]);
+  if (typingAziz) items.push(['__typing', false]);
+  if (t >= T.r1) items.push([R1, false, '14:33', prog(t, T.r1, T.r1 + .28)]);
+  if (t >= T.r2) items.push([R2, false, '14:33', prog(t, T.r2, T.r2 + .28)]);
+  const hOf = it => it[0] === '__typing' ? 92 : bubbleSize(it[0], mw).h;
+  let y = barY - 26 - items.reduce((s, it) => s + hOf(it) + 18, 0);
+  y = Math.max(y, sy + 300);
+  items.forEach(it => {
+    if (it[0] === '__typing') { rr(mx, y, 170, 92, 34); g.fillStyle = '#fff'; g.fill(); for (let k = 0; k < 3; k++) { const j = Math.sin(t * 13 - k * .9) * 8; g.beginPath(); g.arc(mx + 52 + k * 34, y + 46 + j, 10, 0, Math.PI * 2); g.fillStyle = '#8696a0'; g.fill(); } }
+    else drawBubble(mx, y, mw, it[0], it[1], it[2], it[3]);
+    y += hOf(it) + 18;
+  });
+  // input bar
+  g.fillStyle = 'rgba(246,246,246,.98)'; g.fillRect(sx, barY, SW, barH + 200);
+  font(56, 300); g.fillStyle = '#007aff'; g.textAlign = 'center'; g.fillText('+', sx + 62, barY + barH - 66);
+  rr(sx + 110, barY + 20, SW - 250, inH, 48); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#d1d1d6'; g.stroke();
+  font(40, 400); g.textAlign = 'left'; g.textBaseline = 'middle';
+  if (!txt) { g.fillStyle = '#c4c4c6'; g.fillText('Сообщение', sx + 146, barY + 20 + inH / 2); }
+  else { g.fillStyle = '#000'; shownLines.forEach((l, i) => g.fillText(l, sx + 146, barY + 20 + 48 + i * 52 - 2));
+    if (Math.floor(t * 3) % 2 === 0) { const last = shownLines[shownLines.length - 1]; g.fillStyle = '#007aff'; g.fillRect(sx + 150 + g.measureText(last).width, barY + 20 + 24 + (shownLines.length - 1) * 52, 4, 48); } }
+  // send button (blue arrow when there is text) / mic
+  const pressed = (Math.abs(t - T.s1) < .1 || Math.abs(t - T.s2) < .1) ? .85 : 1;
+  g.save(); g.translate(sx + SW - 74, barY + barH - 68); g.scale(pressed, pressed);
+  if (txt) { g.beginPath(); g.arc(0, 0, 44, 0, Math.PI * 2); g.fillStyle = '#00a884'; g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(-15, -18); g.lineTo(21, 0); g.lineTo(-15, 18); g.lineTo(-9, 0); g.closePath(); g.fill(); }
+  else { g.strokeStyle = '#007aff'; g.lineWidth = 5; rr(-11, -28, 22, 40, 11); g.stroke(); g.beginPath(); g.arc(0, 2, 20, 0, Math.PI); g.stroke(); g.beginPath(); g.moveTo(0, 22); g.lineTo(0, 32); g.stroke(); }
+  g.restore();
+  // keyboard on top of the bottom area
+  if (kbY < sy + SH) keyboard(sx, kbY, SW, kbH, lastKey(t));
+  // home indicator
+  g.fillStyle = '#000'; rr(sx + SW / 2 - 140, sy + SH - 26, 280, 11, 6); g.fill();
   g.restore(); // screen clip
+  // Dynamic Island
+  rr(-118, y0 + 54, 236, 80, 40); g.fillStyle = '#000'; g.fill();
+  g.beginPath(); g.arc(78, y0 + 94, 15, 0, Math.PI * 2); g.fillStyle = '#10131a'; g.fill(); g.beginPath(); g.arc(78, y0 + 94, 6, 0, Math.PI * 2); g.fillStyle = '#1c2a44'; g.fill();
+  // glass reflection
+  g.save(); rr(sx, sy, SW, SH, R - 22); g.clip(); const gl = g.createLinearGradient(x0, y0, x0 + PW * .7, y0 + PH * .5); gl.addColorStop(0, 'rgba(255,255,255,.10)'); gl.addColorStop(.5, 'rgba(255,255,255,0)'); g.fillStyle = gl; g.fillRect(x0, y0, PW, PH); g.restore();
   g.restore();
 }
 window.renderFrame = i => frame(i / FPS);

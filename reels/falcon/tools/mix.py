@@ -1,7 +1,7 @@
 """Sound for «Билет с неба» (Mixkit music + SFX). Usage: mix.py out.wav"""
-import numpy as np, subprocess, sys, os, wave
+import numpy as np, subprocess, sys, os, wave, json
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cartoon', 'audio_src')
-SR = 44100; DUR = 30.82; N = int(SR * DUR)
+SR = 44100; DUR = 31.82; N = int(SR * DUR)
 mix = np.zeros((N, 2)); cache = {}
 SRCV = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'view_palm.mp4')
 def load(path, af=''):
@@ -20,25 +20,27 @@ def put(name, at, gain=1., dur=None, af='', fade=.02, off=0., pan=0., path=None)
 # music bed
 put('music_serene_view', 0, .55, dur=DUR, fade=.6)
 # queue (wide) → sigh (close)
-put('city', 0, .16, dur=16.68, off=30, fade=.4); put('crowd_mall', 0, .22, dur=11.64, off=6, fade=.3)
+put('city', 0, .16, dur=17.68, off=30, fade=.4); put('crowd_mall', 0, .22, dur=12.64, off=6, fade=.3)
 put('clock_fast', .3, .28, dur=1.6)
-# chat insert 3.3–9.9: typing, send, «печатает…», reply
+# chat insert 3.3–10.9 (iPhone): typing «Здравствуйте, Азиз!», send, fast typing, send, «печатает…», two replies
 C0 = 3.3
-for k in range(14): put('click', C0 + .6 + k * .17, .22, pan=.1)
-put('msg_pop', C0 + 3.1, .8)
-put('msg_pop', C0 + 4.7, .9); put('correct', C0 + 4.75, .3)
+TT = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'chat', 'type_times.json')))
+for k, tt in enumerate(TT):
+    if k < 19 or k % 2 == 0: put('click', C0 + tt, .18, pan=.1)
+put('msg_pop', C0 + 1.5, .8); put('msg_pop', C0 + 4.3, .8)
+put('msg_pop', C0 + 5.6, .9); put('msg_pop', C0 + 6.25, .9); put('correct', C0 + 6.3, .25)
 # queue again: she looks up — the falcon is coming
-put('whoosh', 11.4, .5, pan=.3); put('bird_flap', 11.64, .9)
-put('magic', 13.7, .35); put('paper_quick', 13.8, .45)
-put('bird_flap', 15.0, .6, pan=-.3)
+put('whoosh', 12.4, .5, pan=.3); put('bird_flap', 12.64, .9)
+put('magic', 14.7, .35); put('paper_quick', 14.8, .45)
+put('bird_flap', 16.0, .6, pan=-.3)
 # up to the deck
-put('correct', 16.58, .35); put('windy_swoosh', 16.55, .3, dur=.9)
-put('wind', 16.68, .12, dur=DUR - 16.68, off=8, fade=.6)
+put('correct', 17.58, .35); put('windy_swoosh', 17.55, .3, dur=.9)
+put('wind', 17.68, .12, dur=DUR - 17.68, off=8, fade=.6)
 # falcon over the Palm
-put('bird_flap', 22.0, .5, pan=.4); put('whoosh', 23.2, .35, pan=-.3)
+put('bird_flap', 23.0, .5, pan=.4); put('whoosh', 24.2, .35, pan=-.3)
 # real glass + end card
-put(None, 25.72, .35, dur=1.5, off=15.8, fade=.3, path=SRCV)
-put('magic', 27.5, .3)
+put(None, 26.72, .35, dur=1.5, off=15.8, fade=.3, path=SRCV)
+put('magic', 28.5, .3)
 t = np.arange(N) / SR
 mix *= (np.clip(t / .08, 0, 1) * np.clip((DUR - t) / .45, 0, 1))[:, None]
 mix /= max(np.abs(mix).max(), 1e-9); mix = np.tanh(mix * 1.2) / np.tanh(1.2) * .92
