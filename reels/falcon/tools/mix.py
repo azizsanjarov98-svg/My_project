@@ -1,7 +1,7 @@
 """Sound for «Билет с неба» (Mixkit music + SFX). Usage: mix.py out.wav"""
 import numpy as np, subprocess, sys, os, wave
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'cartoon', 'audio_src')
-SR = 44100; DUR = 32.33; N = int(SR * DUR)
+SR = 44100; DUR = 30.82; N = int(SR * DUR)
 mix = np.zeros((N, 2)); cache = {}
 SRCV = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'view_palm.mp4')
 def load(path, af=''):
@@ -37,8 +37,8 @@ put('wind', 16.68, .12, dur=DUR - 16.68, off=8, fade=.6)
 # falcon over the Palm
 put('bird_flap', 22.0, .5, pan=.4); put('whoosh', 23.2, .35, pan=-.3)
 # real glass + end card
-put(None, 25.72, .35, dur=4.6, off=15.0, fade=.3, path=SRCV)
-put('magic', 26.4, .3)
+put(None, 25.72, .35, dur=1.5, off=15.8, fade=.3, path=SRCV)
+put('magic', 27.5, .3)
 t = np.arange(N) / SR
 mix *= (np.clip(t / .08, 0, 1) * np.clip((DUR - t) / .45, 0, 1))[:, None]
 mix /= max(np.abs(mix).max(), 1e-9); mix = np.tanh(mix * 1.2) / np.tanh(1.2) * .92

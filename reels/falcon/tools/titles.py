@@ -5,7 +5,7 @@ W, H = 1080, 1920
 font = ImageFont.truetype('/usr/share/fonts/opentype/inter/InterDisplay-ExtraBold.otf', 92)
 img = Image.new('RGBA', (W, H), (0, 0, 0, 0))
 lines = ['Свой человек', 'в Эмиратах']
-y = 560
+y = 330
 shadow = Image.new('RGBA', (W, H), (0, 0, 0, 0)); sd = ImageDraw.Draw(shadow)
 d = ImageDraw.Draw(img)
 for i, s in enumerate(lines):

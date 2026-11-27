@@ -3,6 +3,7 @@ Places brand/logo_aziz.png unchanged (only uniform scaling) on a transparent 108
 No «@», no recolouring, no shadows, halos, plates or opacity changes — the file already looks like the original.
 
 Usage: python3 brand/place_logo.py out.png --width 330 --x right --y 120
+       (positions refer to the visible emblem; the file's transparent margins are ignored)
        --x/--y accept pixels, or left/center/right (x) and top/center/bottom (y); margin 40 px from the edges.
 """
 import argparse, os
@@ -17,5 +18,9 @@ CW, CH = map(int, a.canvas.split('x'))
 L = Image.open(os.path.join(HERE, 'logo_aziz.png'))
 h = round(L.height * a.width / L.width); L = L.resize((a.width, h), Image.LANCZOS)
 pos = lambda v, size, full: {'left': 40, 'top': 40, 'center': (full - size) // 2, 'right': full - size - 40, 'bottom': full - size - 40}.get(v, None) if not str(v).lstrip('-').isdigit() else int(v)
-C = Image.new('RGBA', (CW, CH), (0, 0, 0, 0)); C.alpha_composite(L, (pos(a.x, a.width, CW), pos(a.y, h, CH)))  # alpha kept exactly as in the original
+# position by the VISIBLE emblem (its alpha bounding box), not by the transparent margins of the file
+bx0, by0, bx1, by1 = L.getchannel('A').point(lambda v: 255 if v > 20 else 0).getbbox()
+vw, vh = bx1 - bx0, by1 - by0
+C = Image.new('RGBA', (CW, CH), (0, 0, 0, 0))
+C.alpha_composite(L, (pos(a.x, vw, CW) - bx0, pos(a.y, vh, CH) - by0))  # alpha kept exactly as in the original
 C.save(a.out); print('logo', a.width, h)
