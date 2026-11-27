@@ -1,0 +1,100 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Чат с Азизом</title>
+<style>html,body{margin:0;background:#000}canvas{display:block;width:405px;height:720px}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+// «Билет с неба» — insert: Anya texts Aziz from the queue, gets the reply. 6.6 s, drawn in code (exact text, exact avatar).
+const W = 1080, H = 1920, FPS = 30, DUR = 6.6;
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+const F = '"Inter Display", Inter, sans-serif', EMO = '"Noto Color Emoji"';
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v)), prog = (t, a, b) => clamp((t - a) / (b - a));
+const eOut = x => 1 - Math.pow(1 - x, 3), eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const back = (x, s = 1.6) => 1 + (s + 1) * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2);
+const img = src => { const i = new Image(); i.src = src; return i; };
+const BG = img('bg.png'), AV = img('avatar.jpg');
+
+const MSG_OUT = 'Азиз, здравствуйте! Нужна помощь 🙏 Нужны билеты на смотровую The View at the Palm. Тут огромная очередь, я не успеваю 😩';
+const MSG_IN = 'Всё хорошо, не переживайте 😊 Билет скоро будет у вас!';
+const T_IN = .35, T_TYPE0 = .55, T_TYPE1 = 3.0, T_SEND = 3.1, T_TYPING = 3.55, T_REPLY = 4.7;
+
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+function font(sz, w = 600) { g.font = `${w} ${sz}px ${F}, ${EMO}`; }
+function wrap(s, maxW, sz, w = 600) {
+  font(sz, w); const words = s.split(' '), lines = []; let cur = '';
+  for (const wd of words) { const t2 = cur ? cur + ' ' + wd : wd; if (g.measureText(t2).width > maxW && cur) { lines.push(cur); cur = wd; } else cur = t2; }
+  if (cur) lines.push(cur); return lines;
+}
+const graphemes = s => [...new Intl.Segmenter('ru', { granularity: 'grapheme' }).segment(s)].map(x => x.segment);
+const OUT_G = graphemes(MSG_OUT);
+
+function bubble(x, y, maxW, text, mine, time, p) {
+  const sz = 46, lh = 60, lines = wrap(text, maxW - 70, sz);
+  font(sz); const tw = Math.max(...lines.map(l => g.measureText(l).width));
+  const bw = Math.max(tw + 70, 260), bh = lines.length * lh + 76, bx = mine ? x + maxW - bw : x;
+  g.save(); const s = back(clamp(p), 1.8), ox = mine ? bx + bw : bx; g.translate(ox, y + bh); g.scale(s, s); g.translate(-ox, -(y + bh)); g.globalAlpha = clamp(p * 3);
+  g.shadowColor = 'rgba(0,0,0,.12)'; g.shadowBlur = 10; g.shadowOffsetY = 3;
+  rr(bx, y, bw, bh, 34); g.fillStyle = mine ? '#dcf8c6' : '#ffffff'; g.fill(); g.shadowColor = 'transparent';
+  font(sz); g.fillStyle = '#111b21'; g.textBaseline = 'middle'; g.textAlign = 'left';
+  lines.forEach((l, i) => g.fillText(l, bx + 34, y + 34 + lh / 2 + i * lh - 6));
+  font(26, 500); g.fillStyle = '#667781'; g.textAlign = 'right'; g.fillText(time + (mine ? '  ✓✓' : ''), bx + bw - 26, y + bh - 26);
+  if (mine) { g.fillStyle = '#53bdeb'; font(26, 700); g.fillText('✓✓', bx + bw - 26, y + bh - 26); }
+  g.restore(); return bh;
+}
+
+function frame(t) {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  // background: the same queue, out of focus
+  g.save(); g.filter = 'blur(18px) brightness(.7)'; g.drawImage(BG, -40, -60, W + 80, H + 120); g.restore();
+  const z = 1 + .03 * eIO(prog(t, T_IN, DUR));                      // slow push-in on the phone
+  const py = (1 - eOut(prog(t, 0, T_IN))) * 1500;
+  g.save(); g.translate(W / 2, H / 2 + 130 + py); g.scale(z, z); g.rotate(-.015);
+  const PW = 880, PH = 1600, x0 = -PW / 2, y0 = -PH / 2;
+  // phone body
+  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 70; g.shadowOffsetY = 30; rr(x0, y0, PW, PH, 110); g.fillStyle = '#0b0d12'; g.fill(); g.restore();
+  rr(x0, y0, PW, PH, 110); g.lineWidth = 6; g.strokeStyle = '#3a3f4d'; g.stroke();
+  g.save(); rr(x0 + 26, y0 + 26, PW - 52, PH - 52, 88); g.clip();
+  const sx = x0 + 26, sy = y0 + 26, SW = PW - 52, SH = PH - 52;
+  // chat wallpaper
+  g.fillStyle = '#efeae2'; g.fillRect(sx, sy, SW, SH);
+  g.globalAlpha = .06; for (let i = 0; i < 40; i++) { g.font = `46px ${EMO}`; g.fillText(['🌴', '☀️', '✈️', '🏙️'][i % 4], sx + (i * 197) % SW, sy + 260 + (i * 331) % (SH - 300)); } g.globalAlpha = 1;
+  // status bar
+  font(30, 700); g.fillStyle = '#fff'; g.fillStyle = '#075e54'; g.fillRect(sx, sy, SW, 250);
+  g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillText('14:32', sx + 70, sy + 50);
+  g.textAlign = 'right'; g.fillText('5G  ▮▮▮  82%', sx + SW - 70, sy + 50);
+  // header with the avatar
+  const ax = sx + 136, ay = sy + 172, ar = 66;
+  g.save(); g.beginPath(); g.arc(ax, ay, ar, 0, Math.PI * 2); g.clip(); g.drawImage(AV, ax - ar, ay - ar, ar * 2, ar * 2); g.restore();
+  g.fillStyle = '#fff'; g.textAlign = 'left'; font(30, 700); g.fillText('‹', sx + 36, ay);
+  font(46, 700); g.fillText('Азиз | Гид в Эмиратах', ax + ar + 28, ay - 24);
+  const typing = t > T_TYPING && t < T_REPLY;
+  font(32, 500); g.fillStyle = typing ? '#b7f5c4' : '#d7e9e6'; g.fillText(typing ? 'печатает…' : 'в сети', ax + ar + 28, ay + 30);
+  // messages
+  let y = sy + 300; const mx = sx + 36, mw = SW - 72;
+  const day = 'Сегодня'; font(28, 600); const dw = g.measureText(day).width + 50; rr(sx + SW / 2 - dw / 2, y, dw, 54, 27); g.fillStyle = '#e1f2fb'; g.fill(); g.fillStyle = '#54656f'; g.textAlign = 'center'; g.fillText(day, sx + SW / 2, y + 28); y += 90;
+  if (t >= T_SEND) y += bubble(mx, y, mw, MSG_OUT, true, '14:32', prog(t, T_SEND, T_SEND + .28)) + 30;
+  if (typing) { const bw = 170, bh = 92; rr(mx, y, bw, bh, 34); g.fillStyle = '#fff'; g.fill();
+    for (let k = 0; k < 3; k++) { const j = Math.sin(t * 13 - k * .9) * 8; g.beginPath(); g.arc(mx + 52 + k * 34, y + 46 + j, 10, 0, Math.PI * 2); g.fillStyle = '#8696a0'; g.fill(); } }
+  if (t >= T_REPLY) bubble(mx, y, mw, MSG_IN, false, '14:33', prog(t, T_REPLY, T_REPLY + .3));
+  // input bar with live typing
+  const iy = sy + SH - 170; g.fillStyle = '#f0f2f5'; g.fillRect(sx, iy - 20, SW, 190);
+  rr(sx + 30, iy, SW - 200, 110, 55); g.fillStyle = '#fff'; g.fill();
+  const n = t < T_SEND ? Math.floor(OUT_G.length * eIO(prog(t, T_TYPE0, T_TYPE1))) : 0;
+  let shown = OUT_G.slice(0, n).join('');
+  font(38, 500); g.textAlign = 'left'; g.textBaseline = 'middle';
+  if (!shown && t < T_TYPE0) { g.fillStyle = '#8696a0'; g.fillText('Сообщение', sx + 80, iy + 55); }
+  else { // keep the tail of the text visible in one line
+    let s = shown; while (g.measureText(s).width > SW - 330 && s.length) s = s.slice(1);
+    g.fillStyle = '#111b21'; g.fillText(s, sx + 80, iy + 55);
+    if (t < T_SEND && Math.floor(t * 3) % 2 === 0) { const cx = sx + 84 + g.measureText(s).width; g.fillRect(cx, iy + 30, 4, 50); }
+  }
+  // send button (pressed on T_SEND)
+  const press = t > T_SEND - .12 && t < T_SEND + .12 ? .85 : 1;
+  g.save(); g.translate(sx + SW - 95, iy + 55); g.scale(press, press); g.beginPath(); g.arc(0, 0, 58, 0, Math.PI * 2); g.fillStyle = '#00a884'; g.fill();
+  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(-20, -24); g.lineTo(28, 0); g.lineTo(-20, 24); g.lineTo(-12, 0); g.closePath(); g.fill(); g.restore();
+  g.restore(); // screen clip
+  g.restore();
+}
+window.renderFrame = i => frame(i / FPS);
+window.TOTAL = Math.round(DUR * FPS);
+if (!window.__RENDER__) { const st = performance.now(); (function loop() { frame(((performance.now() - st) / 1000) % DUR); requestAnimationFrame(loop); })(); }
+</script></body></html>
